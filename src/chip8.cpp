@@ -709,36 +709,38 @@ void Chip8::set_reg_sum(unsigned char x_reg, unsigned char y_reg){
 
 //(8XY5) set VX to diff of value of VX and VY and set VF to 0 if underflow, 1 else
 void Chip8::set_reg_sub_Y(unsigned char x_reg, unsigned char y_reg){
+    unsigned char underflow = 1;
     if (registers[y_reg] > registers[x_reg]){
-        registers[0xF] = 0; 
-    } else {
-        registers[0xF] = 1;
+        underflow = 0; 
     }
     registers[x_reg] -= registers[y_reg];
+    registers[0xF] = underflow;
 }
 
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit shifted out
 void Chip8::set_reg_shift_right(unsigned char x_reg, unsigned char y_reg){
     registers[x_reg] = registers[y_reg];
-    registers[0xF] = registers[x_reg] & 1;
+    unsigned char out = registers[x_reg] & 1;
     registers[x_reg] >>= 1;
+    registers[0xF] = out;
 }
 
 //(8XY7) set VX to value of VY - VX and set VF to 0 if underflow, 1 else 
 void Chip8::set_reg_sub_X(unsigned char x_reg, unsigned char y_reg){
+    unsigned char underflow = 1;
     if (registers[x_reg] > registers[y_reg]){
-        registers[0xF] = 0; 
-    } else {
-        registers[0xF] = 1;
+        underflow = 0;
     }
     registers[x_reg] = registers[y_reg] - registers[x_reg];
+    registers[0xF] = underflow;
 }
 
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit shifted out
 void Chip8::set_reg_shift_left(unsigned char x_reg, unsigned char y_reg){
     registers[x_reg] = registers[y_reg];
-    registers[0xF] = (registers[x_reg] >> 7) & 1;
+    unsigned char out = (registers[x_reg] >> 7) & 1;
     registers[x_reg] <<= 1;
+    registers[0xF] = out;
 }
 
 //(9XY0) skip if VX != VY
@@ -856,7 +858,7 @@ void Chip8::set_reg_BCD(unsigned char x_reg){
     std::cout << std::hex << (int)memory[I] << (int)memory[I+1] << (int)memory[I+2] << std::endl;
 }
 
-//(FX55) write contents of V0 to VX to memory at I (modern)
+//(FX55) write contents of V0 to VX to memory at I (classic)
 void Chip8::write_reg_mem(unsigned char x_reg){
     //TODO make toggle for below behavior
     //classic behavior modifies I
@@ -868,7 +870,7 @@ void Chip8::write_reg_mem(unsigned char x_reg){
     }
 }
 
-//(FX65) read contents of memory at I into V0 to VX (modern) 
+//(FX65) read contents of memory at I into V0 to VX (classic) 
 void Chip8::read_mem_reg(unsigned char x_reg){
     //TODO make toggle for below behavior
     //classic behavior modifies I
