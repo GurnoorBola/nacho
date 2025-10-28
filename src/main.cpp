@@ -12,14 +12,14 @@ int main() {
         return 1;
     }
     
-    while (chip8.loadProgram("IBM Logo.ch8")){
+    //TODO prompt for filename
+
+    while (chip8.loadProgram("3-corax+.ch8")){
         std::cout << "Error loading file. Please make sure the file is in the \"games/\" directory." << std::endl;
         return 1;
     }
 
     while (1) {
-        chip8.processInput();
-
         if (chip8.stop) {
             break;
         }
