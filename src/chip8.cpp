@@ -840,6 +840,7 @@ void Chip8::set_reg_keypress(unsigned char x_reg){
         PC -= 2;
     } else {
         registers[x_reg] = pressed;
+        waiting = false;
     }
 }
 
