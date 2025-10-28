@@ -816,8 +816,6 @@ void Chip8::skip_key_pressed(unsigned char x_reg){
     unsigned char key = registers[x_reg] & 0xF;
     if ((keys>> key) & 1){
         PC += 2;
-    } else {
-        std::cout << std::hex << "nope " << (int)key << " is not pressed" << std::endl;
     }
 }
 
