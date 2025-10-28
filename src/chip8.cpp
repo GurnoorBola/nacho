@@ -860,7 +860,8 @@ void Chip8::add_index(unsigned char x_reg){
 //(FX29) set I to memory location of character represented by lower nibble of VX
 void Chip8::set_index_font(unsigned char x_reg){
     unsigned char ch = registers[x_reg] & 0xF;
-    I = (0x050 + ch);
+    I = (0x050+ (5*ch));
+    std::cout << std::hex << (int)memory[I] << std::endl;
 }
 
 //(FX33) set memory at I, I+1, I+2 to be the hundredths, tens, and ones place of the decimal representation of VX
