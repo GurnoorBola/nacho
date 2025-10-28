@@ -834,8 +834,9 @@ void Chip8::set_reg_delay(unsigned char x_reg){
 
 //(FX0A) wait for key press and release and set VX to that key
 void Chip8::set_reg_keypress(unsigned char x_reg){
-    old = pressed; 
-    if (pressed == old){
+    if (!waiting) pressed = 0xFF;
+    waiting = true;
+    if (pressed == 0xFF){
         PC -= 2;
     } else {
         registers[x_reg] = pressed;

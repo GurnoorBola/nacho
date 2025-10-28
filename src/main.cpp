@@ -14,7 +14,7 @@ int main() {
     
     //TODO prompt for filename
 
-    while (chip8.loadProgram("Rocket [Joseph Weisbecker, 1978].ch8")){
+    while (chip8.loadProgram("spockpaperscissors.ch8")){
         std::cout << "Error loading file. Please make sure the file is in the \"games/\" directory." << std::endl;
         return 1;
     }

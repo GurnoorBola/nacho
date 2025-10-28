@@ -24,8 +24,8 @@ private:
     int sound;
     unsigned char registers[16] = {};
 
-    unsigned char pressed;
-    unsigned char old;
+    unsigned char pressed = 0xFF;
+    bool waiting = false;
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void process_input();
