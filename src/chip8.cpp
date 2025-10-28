@@ -2,6 +2,7 @@
 #include <cstring>
 #include <fstream>
 #include <imgui.h>
+#include <chrono>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
@@ -353,12 +354,13 @@ int Chip8::initDisplay(){
 }
 
 void Chip8::emulate_cycle(){
-    glfwPollEvents();
-
+    auto start = std::chrono::high_resolution_clock::now();
     //ImGui_ImplOpenGL3_NewFrame();
     //ImGui_ImplGlfw_NewFrame();
     //ImGui::NewFrame();
     //ImGui::ShowDemoWindow();
+
+    //decrement timers
 
     unsigned short instruction = Chip8::fetch();
     Chip8::decode(instruction);
@@ -380,6 +382,16 @@ void Chip8::emulate_cycle(){
 
     glfwSwapBuffers(window);
 
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+    last += elapsed.count();
+
+    if (last >= 16){
+        if (delay) delay = std::max(0, sound - 1*(last/16));
+        if (sound) sound = std::max(0, sound - 1*(last/16));
+        last %= 16;
+    }
+    glfwPollEvents();
     return;
 }
 
@@ -684,16 +696,19 @@ void Chip8::set_reg_equals(unsigned char x_reg, unsigned char y_reg){
 //(8XY1) set VX to or of value of VX and VY 
 void Chip8::set_reg_or(unsigned char x_reg, unsigned char y_reg) {
     registers[x_reg] |= registers[y_reg];
+    registers[0xF] = 0;
 }
 
 //(8XY2) set VX to and of value of VX and VY 
 void Chip8::set_reg_and(unsigned char x_reg, unsigned char y_reg){
     registers[x_reg] &= registers[y_reg];
+    registers[0xF] = 0;
 }
 
 //(8XY3) set VX to xor of value of VX and VY 
 void Chip8::set_reg_xor(unsigned char x_reg, unsigned char y_reg){
     registers[x_reg] ^= registers[y_reg];
+    registers[0xF] = 0;
 }
 
  //8XY4 set VX to sum of value of VX and VY and set VF to 1 if overflow, 0 else
@@ -799,15 +814,17 @@ void Chip8::display(unsigned char x_reg, unsigned char y_reg, unsigned char heig
 //(EX9E) skip if key represented by VX's lower nibble is pressed
 void Chip8::skip_key_pressed(unsigned char x_reg){
     unsigned char key = registers[x_reg] & 0xF;
-    if ((keys >> key) & 1){
+    if ((keys>> key) & 1){
         PC += 2;
+    } else {
+        std::cout << std::hex << "nope " << (int)key << " is not pressed" << std::endl;
     }
 }
 
 //(EXA1) skip if key represented by VX's lower nibble is not pressed
 void Chip8::skip_key_not_pressed(unsigned char x_reg){
     unsigned char key = registers[x_reg] & 0xF;
-    if (!((keys >> key) & 1)){
+    if (!((keys>> key) & 1)){
         PC += 2;
     }
 }
@@ -819,9 +836,9 @@ void Chip8::set_reg_delay(unsigned char x_reg){
 
 //(FX0A) wait for key press and release and set VX to that key
 void Chip8::set_reg_keypress(unsigned char x_reg){
-    pressed = 0xFF;
-    if (pressed == 0xFF){
-         PC -= 2;
+    old = pressed; 
+    if (pressed == old){
+        PC -= 2;
     } else {
         registers[x_reg] = pressed;
     }
@@ -855,7 +872,6 @@ void Chip8::set_reg_BCD(unsigned char x_reg){
         memory[I+(unsigned short)offset] = (unsigned char)(num%10);
         num /= 10;
     }
-    std::cout << std::hex << (int)memory[I] << (int)memory[I+1] << (int)memory[I+2] << std::endl;
 }
 
 //(FX55) write contents of V0 to VX to memory at I (classic)

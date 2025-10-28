@@ -19,13 +19,16 @@ private:
     unsigned short I;
     unsigned short stack[MAX_STACK] = {};
     unsigned char SP = -1;
-    unsigned char delay;
-    unsigned char sound;
+    int last = 0;
+    int delay;
+    int sound;
     unsigned char registers[16] = {};
 
-    bool pressed;
+    unsigned char pressed;
+    unsigned char old;
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    void process_input();
 
     //stack operations
     void push(unsigned short x);
@@ -89,12 +92,10 @@ public:
     Chip8();
 
     //each bit maps to keypress
-    unsigned short keys;
+    unsigned short keys = 0;
 
     //flag to stop emulation
-    bool stop;
-    
-    void processInput();
+    bool stop = false;
     
     int initDisplay();
 
