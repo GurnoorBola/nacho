@@ -19,9 +19,8 @@ private:
     unsigned short I;
     unsigned short stack[MAX_STACK] = {};
     unsigned char SP = -1;
-    int last = 0;
-    int delay;
-    int sound;
+    int delay = 0;
+    int sound = 0;
     unsigned char registers[16] = {};
 
     unsigned char pressed = 0xFF;
@@ -89,13 +88,18 @@ private:
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 public:
-    Chip8();
+    Chip8(unsigned char mode, int speed);
 
     //each bit maps to keypress
     unsigned short keys = 0;
 
+    unsigned char mode;
+    int speed;
+
     //flag to stop emulation
     bool stop = false;
+    //bool to notify if we drew
+    bool draw = false;
     
     int initDisplay();
 
@@ -103,6 +107,8 @@ public:
     int loadProgram(std::string filename);
 
     void emulate_cycle();
+
+    void decrementTimers();
 
     void terminate();
 };

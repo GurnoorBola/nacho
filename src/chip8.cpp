@@ -1,5 +1,4 @@
 #include <chip8/chip8.h>
-#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <imgui.h>
@@ -26,9 +25,12 @@ unsigned char fonts[] = {
 };
 
 /*-----------------[Special Member Functions]-----------------*/
-Chip8::Chip8() {
+Chip8::Chip8(unsigned char mode, int speed) {
   // copy fonts to memory (0x050 - 0x09F)
   memcpy(&memory[0x50], fonts, sizeof(fonts));
+
+  Chip8::mode = mode;
+  Chip8::speed = speed;
 
   // int length = WIDTH*HEIGHT;
   // for (int i=0; i < length; i++){
@@ -352,7 +354,6 @@ int Chip8::initDisplay() {
 }
 
 void Chip8::emulate_cycle() {
-  auto start = std::chrono::high_resolution_clock::now();
   // ImGui_ImplOpenGL3_NewFrame();
   // ImGui_ImplGlfw_NewFrame();
   // ImGui::NewFrame();
@@ -378,22 +379,18 @@ void Chip8::emulate_cycle() {
   // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
   glfwSwapBuffers(window);
-
-  auto end = std::chrono::high_resolution_clock::now();
-  auto elapsed =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  last += elapsed.count();
-
-  if (last >= 16) {
-    if (delay)
-      delay = std::max(0, sound - 1 * (last / 16));
-    if (sound)
-      sound = std::max(0, sound - 1 * (last / 16));
-    last %= 16;
-  }
   glfwPollEvents();
   return;
 }
+
+void Chip8::decrementTimers(){
+    if (delay)
+      delay -= 1; 
+    if (sound){
+      sound -= 1;
+    }
+}
+
 
 void Chip8::terminate() {
   glDeleteVertexArrays(1, &VAO);
@@ -809,7 +806,7 @@ void Chip8::display(unsigned char x_reg, unsigned char y_reg,
     }
     sprite_index++;
   }
-
+  draw = true;
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED,
                   GL_UNSIGNED_BYTE, screen);
 }
