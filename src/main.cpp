@@ -1,10 +1,11 @@
 #include <Shaders/shader.h>
 #include <chip8/chip8.h>
-#include <cmath>
 #include <glad.h>
 #include <glfw3.h>
-#include <iostream>
+
 #include <chrono>
+#include <cmath>
+#include <iostream>
 #include <thread>
 
 int main() {
@@ -24,7 +25,7 @@ int main() {
   }
 
   while (1) {
-    for (int i=0; i < chip8.speed; i++){
+    for (int i = 0; i < chip8.speed; i++) {
       if (chip8.stop || chip8.draw) {
         chip8.draw = false;
         break;

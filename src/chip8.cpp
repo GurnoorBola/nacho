@@ -1,27 +1,28 @@
 #include <chip8/chip8.h>
-#include <cstring>
-#include <fstream>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <cstring>
+#include <fstream>
+
 unsigned char fonts[] = {
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
+    0x20, 0x60, 0x20, 0x20, 0x70,  // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0,  // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10,  // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0,  // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0,  // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40,  // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0,  // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0,  // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90,  // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0,  // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0,  // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0,  // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80   // F
 };
 
 /*-----------------[Special Member Functions]-----------------*/
@@ -75,7 +76,7 @@ int Chip8::loadProgram(std::string filename) {
   std::streampos fileSize = program.tellg();
   program.seekg(0, std::ios::beg);
 
-  program.read(reinterpret_cast<char *>(memory + 0x200), fileSize);
+  program.read(reinterpret_cast<char*>(memory + 0x200), fileSize);
   for (int i = 512; i < 512 + (int)fileSize; i++) {
     printf("%02x ", memory[i]);
     fflush(stdout);
@@ -89,174 +90,174 @@ int Chip8::loadProgram(std::string filename) {
 
 /*-----------------[Graphics]-----------------*/
 
-void Chip8::framebuffer_size_callback(GLFWwindow *window, int width,
+void Chip8::framebuffer_size_callback(GLFWwindow* window, int width,
                                       int height) {
   glViewport(0, 0, WIDTH * 20, HEIGHT * 20);
 }
 
-void Chip8::key_callback(GLFWwindow *window, int key, int scancode, int action,
+void Chip8::key_callback(GLFWwindow* window, int key, int scancode, int action,
                          int mods) {
   if (window == NULL) {
     std::cerr << "GLFW window not intialized" << std::endl;
     return;
   }
-  Chip8 *chip8 = static_cast<Chip8 *>(glfwGetWindowUserPointer(window));
+  Chip8* chip8 = static_cast<Chip8*>(glfwGetWindowUserPointer(window));
   switch (action) {
-  case GLFW_PRESS:
-    switch (key) {
-    case GLFW_KEY_ESCAPE:
-      chip8->stop = true;
+    case GLFW_PRESS:
+      switch (key) {
+        case GLFW_KEY_ESCAPE:
+          chip8->stop = true;
+          break;
+
+        case GLFW_KEY_1:
+          chip8->keys |= (1 << 0x1);
+          chip8->pressed = 0x1;
+          break;
+
+        case GLFW_KEY_2:
+          chip8->keys |= (1 << 0x2);
+          chip8->pressed = 0x2;
+          break;
+
+        case GLFW_KEY_3:
+          chip8->keys |= (1 << 0x3);
+          chip8->pressed = 0x3;
+          break;
+
+        case GLFW_KEY_4:
+          chip8->keys |= (1 << 0xC);
+          chip8->pressed = 0xC;
+          break;
+
+        case GLFW_KEY_Q:
+          chip8->keys |= (1 << 0x4);
+          chip8->pressed = 0x4;
+          break;
+
+        case GLFW_KEY_W:
+          chip8->keys |= (1 << 0x5);
+          chip8->pressed = 0x5;
+          break;
+
+        case GLFW_KEY_E:
+          chip8->keys |= (1 << 0x6);
+          chip8->pressed = 0x6;
+          break;
+
+        case GLFW_KEY_R:
+          chip8->keys |= (1 << 0xD);
+          chip8->pressed = 0xD;
+          break;
+
+        case GLFW_KEY_A:
+          chip8->keys |= (1 << 0x7);
+          chip8->pressed = 0x7;
+          break;
+
+        case GLFW_KEY_S:
+          chip8->keys |= (1 << 0x8);
+          chip8->pressed = 0x8;
+          break;
+
+        case GLFW_KEY_D:
+          chip8->keys |= (1 << 0x9);
+          chip8->pressed = 0x9;
+          break;
+
+        case GLFW_KEY_F:
+          chip8->keys |= (1 << 0xE);
+          chip8->pressed = 0xE;
+          break;
+
+        case GLFW_KEY_Z:
+          chip8->keys |= (1 << 0xA);
+          chip8->pressed = 0xA;
+          break;
+
+        case GLFW_KEY_X:
+          chip8->keys |= (1 << 0x0);
+          chip8->pressed = 0x0;
+          break;
+
+        case GLFW_KEY_C:
+          chip8->keys |= (1 << 0xB);
+          chip8->pressed = 0xB;
+          break;
+
+        case GLFW_KEY_V:
+          chip8->keys |= (1 << 0xF);
+          chip8->pressed = 0xF;
+          break;
+      }
       break;
 
-    case GLFW_KEY_1:
-      chip8->keys |= (1 << 0x1);
-      chip8->pressed = 0x1;
-      break;
+    case GLFW_RELEASE:
+      switch (key) {
+        case GLFW_KEY_1:
+          chip8->keys ^= (1 << 0x1);
+          break;
 
-    case GLFW_KEY_2:
-      chip8->keys |= (1 << 0x2);
-      chip8->pressed = 0x2;
-      break;
+        case GLFW_KEY_2:
+          chip8->keys ^= (1 << 0x2);
+          break;
 
-    case GLFW_KEY_3:
-      chip8->keys |= (1 << 0x3);
-      chip8->pressed = 0x3;
-      break;
+        case GLFW_KEY_3:
+          chip8->keys ^= (1 << 0x3);
+          break;
 
-    case GLFW_KEY_4:
-      chip8->keys |= (1 << 0xC);
-      chip8->pressed = 0xC;
-      break;
+        case GLFW_KEY_4:
+          chip8->keys ^= (1 << 0xC);
+          break;
 
-    case GLFW_KEY_Q:
-      chip8->keys |= (1 << 0x4);
-      chip8->pressed = 0x4;
-      break;
+        case GLFW_KEY_Q:
+          chip8->keys ^= (1 << 0x4);
+          break;
 
-    case GLFW_KEY_W:
-      chip8->keys |= (1 << 0x5);
-      chip8->pressed = 0x5;
-      break;
+        case GLFW_KEY_W:
+          chip8->keys ^= (1 << 0x5);
+          break;
 
-    case GLFW_KEY_E:
-      chip8->keys |= (1 << 0x6);
-      chip8->pressed = 0x6;
-      break;
+        case GLFW_KEY_E:
+          chip8->keys ^= (1 << 0x6);
+          break;
 
-    case GLFW_KEY_R:
-      chip8->keys |= (1 << 0xD);
-      chip8->pressed = 0xD;
-      break;
+        case GLFW_KEY_R:
+          chip8->keys ^= (1 << 0xD);
+          break;
 
-    case GLFW_KEY_A:
-      chip8->keys |= (1 << 0x7);
-      chip8->pressed = 0x7;
-      break;
+        case GLFW_KEY_A:
+          chip8->keys ^= (1 << 0x7);
+          break;
 
-    case GLFW_KEY_S:
-      chip8->keys |= (1 << 0x8);
-      chip8->pressed = 0x8;
-      break;
+        case GLFW_KEY_S:
+          chip8->keys ^= (1 << 0x8);
+          break;
 
-    case GLFW_KEY_D:
-      chip8->keys |= (1 << 0x9);
-      chip8->pressed = 0x9;
-      break;
+        case GLFW_KEY_D:
+          chip8->keys ^= (1 << 0x9);
+          break;
 
-    case GLFW_KEY_F:
-      chip8->keys |= (1 << 0xE);
-      chip8->pressed = 0xE;
-      break;
+        case GLFW_KEY_F:
+          chip8->keys ^= (1 << 0xE);
+          break;
 
-    case GLFW_KEY_Z:
-      chip8->keys |= (1 << 0xA);
-      chip8->pressed = 0xA;
-      break;
+        case GLFW_KEY_Z:
+          chip8->keys ^= (1 << 0xA);
+          break;
 
-    case GLFW_KEY_X:
-      chip8->keys |= (1 << 0x0);
-      chip8->pressed = 0x0;
-      break;
+        case GLFW_KEY_X:
+          chip8->keys ^= (1 << 0x0);
+          break;
 
-    case GLFW_KEY_C:
-      chip8->keys |= (1 << 0xB);
-      chip8->pressed = 0xB;
-      break;
+        case GLFW_KEY_C:
+          chip8->keys ^= (1 << 0xB);
+          break;
 
-    case GLFW_KEY_V:
-      chip8->keys |= (1 << 0xF);
-      chip8->pressed = 0xF;
+        case GLFW_KEY_V:
+          chip8->keys ^= (1 << 0xF);
+          break;
+      }
       break;
-    }
-    break;
-
-  case GLFW_RELEASE:
-    switch (key) {
-    case GLFW_KEY_1:
-      chip8->keys ^= (1 << 0x1);
-      break;
-
-    case GLFW_KEY_2:
-      chip8->keys ^= (1 << 0x2);
-      break;
-
-    case GLFW_KEY_3:
-      chip8->keys ^= (1 << 0x3);
-      break;
-
-    case GLFW_KEY_4:
-      chip8->keys ^= (1 << 0xC);
-      break;
-
-    case GLFW_KEY_Q:
-      chip8->keys ^= (1 << 0x4);
-      break;
-
-    case GLFW_KEY_W:
-      chip8->keys ^= (1 << 0x5);
-      break;
-
-    case GLFW_KEY_E:
-      chip8->keys ^= (1 << 0x6);
-      break;
-
-    case GLFW_KEY_R:
-      chip8->keys ^= (1 << 0xD);
-      break;
-
-    case GLFW_KEY_A:
-      chip8->keys ^= (1 << 0x7);
-      break;
-
-    case GLFW_KEY_S:
-      chip8->keys ^= (1 << 0x8);
-      break;
-
-    case GLFW_KEY_D:
-      chip8->keys ^= (1 << 0x9);
-      break;
-
-    case GLFW_KEY_F:
-      chip8->keys ^= (1 << 0xE);
-      break;
-
-    case GLFW_KEY_Z:
-      chip8->keys ^= (1 << 0xA);
-      break;
-
-    case GLFW_KEY_X:
-      chip8->keys ^= (1 << 0x0);
-      break;
-
-    case GLFW_KEY_C:
-      chip8->keys ^= (1 << 0xB);
-      break;
-
-    case GLFW_KEY_V:
-      chip8->keys ^= (1 << 0xF);
-      break;
-    }
-    break;
   }
 }
 
@@ -283,7 +284,7 @@ int Chip8::initDisplay() {
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  ImGuiIO &io = ImGui::GetIO();
+  ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
@@ -302,15 +303,15 @@ int Chip8::initDisplay() {
 
   float vertices[] = {
       // positions            // texture coords
-      1.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top right
-      1.0f,  -1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // bottom left
-      -1.0f, 1.0f,  0.0f, 0.0f, 1.0f  // top left
+      1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  // top right
+      1.0f,  -1.0f, 0.0f, 1.0f, 0.0f,  // bottom right
+      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  // bottom left
+      -1.0f, 1.0f,  0.0f, 0.0f, 1.0f   // top left
   };
 
   unsigned int indices[] = {
-      0, 1, 3, // first triangle
-      1, 2, 3  // second triangle
+      0, 1, 3,  // first triangle
+      1, 2, 3   // second triangle
   };
 
   glGenBuffers(1, &VBO);
@@ -337,11 +338,11 @@ int Chip8::initDisplay() {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
                GL_STATIC_DRAW);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
 
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
+                        (void*)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
   // small test display 1A
@@ -383,14 +384,12 @@ void Chip8::emulate_cycle() {
   return;
 }
 
-void Chip8::decrementTimers(){
-    if (delay)
-      delay -= 1; 
-    if (sound){
-      sound -= 1;
-    }
+void Chip8::decrementTimers() {
+  if (delay) delay -= 1;
+  if (sound) {
+    sound -= 1;
+  }
 }
-
 
 void Chip8::terminate() {
   glDeleteVertexArrays(1, &VAO);
@@ -420,211 +419,211 @@ unsigned short Chip8::fetch() {
 // determine what to do based on instruction
 void Chip8::decode(unsigned short instruction) {
   switch (instruction >> 12) {
-  case 0x0: {
-    switch (instruction & 0xFFF) {
-    case 0x0E0:
-      Chip8::clear();
-      break;
+    case 0x0: {
+      switch (instruction & 0xFFF) {
+        case 0x0E0:
+          Chip8::clear();
+          break;
 
-    case 0x0EE:
-      Chip8::return_subroutine();
-      break;
+        case 0x0EE:
+          Chip8::return_subroutine();
+          break;
 
-    default:
-      std::cerr << "Invalid opcode" << std::endl;
+        default:
+          std::cerr << "Invalid opcode" << std::endl;
+      }
+      break;
     }
-    break;
-  }
 
-  case 0x1: {
-    unsigned short addr = instruction & 0xFFF;
-    Chip8::jump(addr);
-    break;
-  }
-
-  case 0x2: {
-    unsigned short addr = instruction & 0xFFF;
-    Chip8::start_subroutine(addr);
-    break;
-  }
-
-  case 0x3: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char val = instruction & 0xFF;
-    Chip8::skip_equals(x_reg, val);
-    break;
-  }
-
-  case 0x4: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char val = instruction & 0xFF;
-    Chip8::skip_not_equals(x_reg, val);
-    break;
-  }
-
-  case 0x5: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char y_reg = (instruction >> 4) & 0xF;
-    Chip8::skip_reg_equals(x_reg, y_reg);
-    break;
-  }
-
-  case 0x6: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char val = instruction & 0xFF;
-    Chip8::set(x_reg, val);
-    break;
-  }
-
-  case 0x7: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char val = instruction & 0xFF;
-    Chip8::add(x_reg, val);
-    break;
-  }
-
-  case 0x8: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char y_reg = (instruction >> 4) & 0xF;
-
-    switch (instruction & 0xF) {
-    case 0x0:
-      Chip8::set_reg_equals(x_reg, y_reg);
+    case 0x1: {
+      unsigned short addr = instruction & 0xFFF;
+      Chip8::jump(addr);
       break;
-
-    case 0x1:
-      Chip8::set_reg_or(x_reg, y_reg);
-      break;
-
-    case 0x2:
-      Chip8::set_reg_and(x_reg, y_reg);
-      break;
-
-    case 0x3:
-      Chip8::set_reg_xor(x_reg, y_reg);
-      break;
-
-    case 0x4:
-      Chip8::set_reg_sum(x_reg, y_reg);
-      break;
-
-    case 0x5:
-      Chip8::set_reg_sub_Y(x_reg, y_reg);
-      break;
-
-    case 0x6:
-      Chip8::set_reg_shift_right(x_reg, y_reg);
-      break;
-
-    case 0x7:
-      Chip8::set_reg_sub_X(x_reg, y_reg);
-      break;
-
-    case 0xE:
-      Chip8::set_reg_shift_left(x_reg, y_reg);
-      break;
-
-    default:
-      std::cerr << "Invalid opcode" << std::endl;
     }
-    break;
-  }
 
-  case 0x9: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char y_reg = (instruction >> 4) & 0xF;
-    Chip8::skip_reg_not_equals(x_reg, y_reg);
-    break;
-  }
-
-  case 0xA: {
-    unsigned short addr = instruction & 0xFFF;
-    Chip8::set_index(addr);
-    break;
-  }
-
-  case 0xB: {
-    unsigned short addr = instruction & 0xFFF;
-    Chip8::jump_plus(addr);
-    break;
-  }
-
-  case 0xC: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char val = instruction & 0xFF;
-    Chip8::set_reg_rand(x_reg, val);
-    break;
-  }
-
-  case 0xD: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    unsigned char y_reg = (instruction >> 4) & 0xF;
-    unsigned char height = instruction & 0xF;
-    Chip8::display(x_reg, y_reg, height);
-    break;
-  }
-
-  case 0xE: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    switch (instruction & 0xFF) {
-    case 0x9E:
-      Chip8::skip_key_pressed(x_reg);
+    case 0x2: {
+      unsigned short addr = instruction & 0xFFF;
+      Chip8::start_subroutine(addr);
       break;
-
-    case 0xA1:
-      Chip8::skip_key_not_pressed(x_reg);
-      break;
-
-    default:
-      std::cerr << "Invalid opcode" << std::endl;
     }
-    break;
-  }
 
-  case 0xF: {
-    unsigned char x_reg = (instruction >> 8) & 0xF;
-    switch (instruction & 0xFF) {
-    case 0x07:
-      Chip8::set_reg_delay(x_reg);
+    case 0x3: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char val = instruction & 0xFF;
+      Chip8::skip_equals(x_reg, val);
       break;
-
-    case 0x0A:
-      Chip8::set_reg_keypress(x_reg);
-      break;
-
-    case 0x15:
-      Chip8::set_delay(x_reg);
-      break;
-
-    case 0x18:
-      Chip8::set_sound(x_reg);
-      break;
-
-    case 0x1E:
-      Chip8::add_index(x_reg);
-      break;
-
-    case 0x29:
-      Chip8::set_index_font(x_reg);
-      break;
-
-    case 0x33:
-      Chip8::set_reg_BCD(x_reg);
-      break;
-
-    case 0x55:
-      Chip8::write_reg_mem(x_reg);
-      break;
-
-    case 0x65:
-      Chip8::read_mem_reg(x_reg);
-      break;
-
-    default:
-      std::cerr << "Invalid opcode" << std::endl;
     }
-    break;
-  }
+
+    case 0x4: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char val = instruction & 0xFF;
+      Chip8::skip_not_equals(x_reg, val);
+      break;
+    }
+
+    case 0x5: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char y_reg = (instruction >> 4) & 0xF;
+      Chip8::skip_reg_equals(x_reg, y_reg);
+      break;
+    }
+
+    case 0x6: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char val = instruction & 0xFF;
+      Chip8::set(x_reg, val);
+      break;
+    }
+
+    case 0x7: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char val = instruction & 0xFF;
+      Chip8::add(x_reg, val);
+      break;
+    }
+
+    case 0x8: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char y_reg = (instruction >> 4) & 0xF;
+
+      switch (instruction & 0xF) {
+        case 0x0:
+          Chip8::set_reg_equals(x_reg, y_reg);
+          break;
+
+        case 0x1:
+          Chip8::set_reg_or(x_reg, y_reg);
+          break;
+
+        case 0x2:
+          Chip8::set_reg_and(x_reg, y_reg);
+          break;
+
+        case 0x3:
+          Chip8::set_reg_xor(x_reg, y_reg);
+          break;
+
+        case 0x4:
+          Chip8::set_reg_sum(x_reg, y_reg);
+          break;
+
+        case 0x5:
+          Chip8::set_reg_sub_Y(x_reg, y_reg);
+          break;
+
+        case 0x6:
+          Chip8::set_reg_shift_right(x_reg, y_reg);
+          break;
+
+        case 0x7:
+          Chip8::set_reg_sub_X(x_reg, y_reg);
+          break;
+
+        case 0xE:
+          Chip8::set_reg_shift_left(x_reg, y_reg);
+          break;
+
+        default:
+          std::cerr << "Invalid opcode" << std::endl;
+      }
+      break;
+    }
+
+    case 0x9: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char y_reg = (instruction >> 4) & 0xF;
+      Chip8::skip_reg_not_equals(x_reg, y_reg);
+      break;
+    }
+
+    case 0xA: {
+      unsigned short addr = instruction & 0xFFF;
+      Chip8::set_index(addr);
+      break;
+    }
+
+    case 0xB: {
+      unsigned short addr = instruction & 0xFFF;
+      Chip8::jump_plus(addr);
+      break;
+    }
+
+    case 0xC: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char val = instruction & 0xFF;
+      Chip8::set_reg_rand(x_reg, val);
+      break;
+    }
+
+    case 0xD: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      unsigned char y_reg = (instruction >> 4) & 0xF;
+      unsigned char height = instruction & 0xF;
+      Chip8::display(x_reg, y_reg, height);
+      break;
+    }
+
+    case 0xE: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      switch (instruction & 0xFF) {
+        case 0x9E:
+          Chip8::skip_key_pressed(x_reg);
+          break;
+
+        case 0xA1:
+          Chip8::skip_key_not_pressed(x_reg);
+          break;
+
+        default:
+          std::cerr << "Invalid opcode" << std::endl;
+      }
+      break;
+    }
+
+    case 0xF: {
+      unsigned char x_reg = (instruction >> 8) & 0xF;
+      switch (instruction & 0xFF) {
+        case 0x07:
+          Chip8::set_reg_delay(x_reg);
+          break;
+
+        case 0x0A:
+          Chip8::set_reg_keypress(x_reg);
+          break;
+
+        case 0x15:
+          Chip8::set_delay(x_reg);
+          break;
+
+        case 0x18:
+          Chip8::set_sound(x_reg);
+          break;
+
+        case 0x1E:
+          Chip8::add_index(x_reg);
+          break;
+
+        case 0x29:
+          Chip8::set_index_font(x_reg);
+          break;
+
+        case 0x33:
+          Chip8::set_reg_BCD(x_reg);
+          break;
+
+        case 0x55:
+          Chip8::write_reg_mem(x_reg);
+          break;
+
+        case 0x65:
+          Chip8::read_mem_reg(x_reg);
+          break;
+
+        default:
+          std::cerr << "Invalid opcode" << std::endl;
+      }
+      break;
+    }
   }
 }
 
@@ -715,7 +714,7 @@ void Chip8::set_reg_sum(unsigned char x_reg, unsigned char y_reg) {
 }
 
 //(8XY5) set VX to diff of value of VX and VY and set VF to 0 if underflow, 1
-//else
+// else
 void Chip8::set_reg_sub_Y(unsigned char x_reg, unsigned char y_reg) {
   unsigned char underflow = 1;
   if (registers[y_reg] > registers[x_reg]) {
@@ -726,7 +725,7 @@ void Chip8::set_reg_sub_Y(unsigned char x_reg, unsigned char y_reg) {
 }
 
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
-//shifted out
+// shifted out
 void Chip8::set_reg_shift_right(unsigned char x_reg, unsigned char y_reg) {
   registers[x_reg] = registers[y_reg];
   unsigned char out = registers[x_reg] & 1;
@@ -745,7 +744,7 @@ void Chip8::set_reg_sub_X(unsigned char x_reg, unsigned char y_reg) {
 }
 
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
-//shifted out
+// shifted out
 void Chip8::set_reg_shift_left(unsigned char x_reg, unsigned char y_reg) {
   registers[x_reg] = registers[y_reg];
   unsigned char out = (registers[x_reg] >> 7) & 1;
@@ -832,8 +831,7 @@ void Chip8::set_reg_delay(unsigned char x_reg) { registers[x_reg] = delay; }
 
 //(FX0A) wait for key press and release and set VX to that key
 void Chip8::set_reg_keypress(unsigned char x_reg) {
-  if (!waiting)
-    pressed = 0xFF;
+  if (!waiting) pressed = 0xFF;
   waiting = true;
   if (pressed == 0xFF) {
     PC -= 2;
@@ -860,7 +858,7 @@ void Chip8::set_index_font(unsigned char x_reg) {
 }
 
 //(FX33) set memory at I, I+1, I+2 to be the hundredths, tens, and ones place of
-//the decimal representation of VX
+// the decimal representation of VX
 void Chip8::set_reg_BCD(unsigned char x_reg) {
   int num = registers[x_reg];
   for (int offset = 2; offset >= 0; offset--) {
@@ -874,7 +872,7 @@ void Chip8::write_reg_mem(unsigned char x_reg) {
   // TODO make toggle for below behavior
   // classic behavior modifies I
   // modern behavior doesn't
-  unsigned short &addr = I;
+  unsigned short& addr = I;
   for (unsigned char reg = 0; reg <= x_reg; reg++) {
     memory[I] = registers[reg];
     addr += 1;
@@ -886,7 +884,7 @@ void Chip8::read_mem_reg(unsigned char x_reg) {
   // TODO make toggle for below behavior
   // classic behavior modifies I
   // modern behavior doesn't
-  unsigned short &addr = I;
+  unsigned short& addr = I;
   for (unsigned char reg = 0; reg <= x_reg; reg++) {
     registers[reg] = memory[I];
     addr += 1;
