@@ -787,15 +787,15 @@ void Chip8::display(unsigned char x_reg, unsigned char y_reg,
     }
 
     unsigned char sprite_row = memory[sprite_index];
-    int pixel = 7;
+    int pixel_index = 7;
 
     for (int col = x; col < (x + 8); col++) {
       if (col >= WIDTH) {
         break;
       }
 
-      unsigned char bit = -((sprite_row >> pixel) & 1);
-      pixel--;
+      unsigned char bit = (sprite_row >> pixel_index) & 1;
+      pixel_index--;
 
       int screen_index = (row * WIDTH) + col;
       if (screen[screen_index] & bit) {
