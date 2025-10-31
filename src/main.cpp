@@ -9,7 +9,7 @@
 #include <thread>
 
 int main() {
-  Chip8 chip8 = Chip8(0, 13);
+  Chip8 chip8 = Chip8(0, 15);
   if (chip8.initDisplay()) {
     std::cout << "Error intializing display..." << std::endl;
     return 1;
@@ -17,7 +17,7 @@ int main() {
 
   // TODO prompt for filename
 
-  while (chip8.loadProgram("5-quirks.ch8")) {
+  while (chip8.loadProgram("4-flags.ch8")) {
     std::cout << "Error loading file. Please make sure the file is in the "
                  "\"games/\" directory."
               << std::endl;

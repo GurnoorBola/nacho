@@ -6,7 +6,7 @@
 #include <cstring>
 #include <fstream>
 
-unsigned char fonts[] = {
+uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
     0x20, 0x60, 0x20, 0x20, 0x70,  // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
@@ -26,21 +26,16 @@ unsigned char fonts[] = {
 };
 
 /*-----------------[Special Member Functions]-----------------*/
-Chip8::Chip8(unsigned char mode, int speed) {
+Chip8::Chip8(int mode, int speed) {
   // copy fonts to memory (0x050 - 0x09F)
   memcpy(&memory[0x50], fonts, sizeof(fonts));
 
   Chip8::mode = mode;
   Chip8::speed = speed;
-
-  // int length = WIDTH*HEIGHT;
-  // for (int i=0; i < length; i++){
-  // screen[i] = 255;
-  //}
 };
 
 /*-----------------[Stack]-----------------*/
-void Chip8::push(unsigned short x) {
+void Chip8::push(uint16_t x) {
   if (SP == MAX_STACK - 1) {
     std::cerr << "Cannot push; Stack full" << std::endl;
     return;
@@ -48,7 +43,7 @@ void Chip8::push(unsigned short x) {
   stack[++SP] = x;
 }
 
-unsigned short Chip8::pop() {
+uint16_t Chip8::pop() {
   if (SP == -1) {
     std::cerr << "Cannot pop; Stack empty" << std::endl;
     return 0;
@@ -56,7 +51,7 @@ unsigned short Chip8::pop() {
   return stack[SP--];
 }
 
-unsigned short Chip8::peek() {
+uint16_t Chip8::peek() {
   if (SP == -1) {
     std::cerr << "Cannot peek; Stack empty" << std::endl;
     return 0;
@@ -88,7 +83,7 @@ int Chip8::loadProgram(std::string filename) {
   return 0;
 }
 
-/*-----------------[Graphics]-----------------*/
+/*-----------------[Window]-----------------*/
 
 void Chip8::framebuffer_size_callback(GLFWwindow* window, int width,
                                       int height) {
@@ -345,12 +340,6 @@ int Chip8::initDisplay() {
                         (void*)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
-  // small test display 1A
-  // Chip8::set_index(0x50 + (1)*5);
-  // Chip8::display(1, 1, 5);
-  // Chip8::set_index(0x50 + (0xA)*5);
-  // Chip8::display(7, 1, 5);
-
   return 0;
 }
 
@@ -360,16 +349,12 @@ void Chip8::emulate_cycle() {
   // ImGui::NewFrame();
   // ImGui::ShowDemoWindow();
 
-  // decrement timers
-
-  unsigned short instruction = Chip8::fetch();
+  uint16_t instruction = Chip8::fetch();
   Chip8::decode(instruction);
 
   glClear(GL_COLOR_BUFFER_BIT);
 
   shader.use();
-
-  // glBindTexture(GL_TEXTURE_2D, texture);
 
   glBindVertexArray(VAO);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -386,9 +371,7 @@ void Chip8::emulate_cycle() {
 
 void Chip8::decrementTimers() {
   if (delay) delay -= 1;
-  if (sound) {
-    sound -= 1;
-  }
+  if (sound) sound -= 1;
 }
 
 void Chip8::terminate() {
@@ -405,19 +388,19 @@ void Chip8::terminate() {
 /*-----------------[Main Functionality]-----------------*/
 
 // get 2 byte instruction at PC location and increment by 2
-unsigned short Chip8::fetch() {
+uint16_t Chip8::fetch() {
   if (PC > MAX_MEM - 2) {
     std::cerr << "PC at end of memory; failed to fetch" << std::endl;
     return 0;
   }
-  unsigned short mask = 0xFFFF;
+  uint16_t mask = 0xFFFF;
   mask &= ((memory[PC] << 8) + (memory[PC + 1]));
   PC += 2;
   return mask;
 }
 
 // determine what to do based on instruction
-void Chip8::decode(unsigned short instruction) {
+void Chip8::decode(uint16_t instruction) {
   switch (instruction >> 12) {
     case 0x0: {
       switch (instruction & 0xFFF) {
@@ -436,55 +419,55 @@ void Chip8::decode(unsigned short instruction) {
     }
 
     case 0x1: {
-      unsigned short addr = instruction & 0xFFF;
+      uint16_t addr = instruction & 0xFFF;
       Chip8::jump(addr);
       break;
     }
 
     case 0x2: {
-      unsigned short addr = instruction & 0xFFF;
+      uint16_t addr = instruction & 0xFFF;
       Chip8::start_subroutine(addr);
       break;
     }
 
     case 0x3: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char val = instruction & 0xFF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t val = instruction & 0xFF;
       Chip8::skip_equals(x_reg, val);
       break;
     }
 
     case 0x4: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char val = instruction & 0xFF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t val = instruction & 0xFF;
       Chip8::skip_not_equals(x_reg, val);
       break;
     }
 
     case 0x5: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char y_reg = (instruction >> 4) & 0xF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t y_reg = (instruction >> 4) & 0xF;
       Chip8::skip_reg_equals(x_reg, y_reg);
       break;
     }
 
     case 0x6: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char val = instruction & 0xFF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t val = instruction & 0xFF;
       Chip8::set(x_reg, val);
       break;
     }
 
     case 0x7: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char val = instruction & 0xFF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t val = instruction & 0xFF;
       Chip8::add(x_reg, val);
       break;
     }
 
     case 0x8: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char y_reg = (instruction >> 4) & 0xF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t y_reg = (instruction >> 4) & 0xF;
 
       switch (instruction & 0xF) {
         case 0x0:
@@ -530,41 +513,41 @@ void Chip8::decode(unsigned short instruction) {
     }
 
     case 0x9: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char y_reg = (instruction >> 4) & 0xF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t y_reg = (instruction >> 4) & 0xF;
       Chip8::skip_reg_not_equals(x_reg, y_reg);
       break;
     }
 
     case 0xA: {
-      unsigned short addr = instruction & 0xFFF;
+      uint16_t addr = instruction & 0xFFF;
       Chip8::set_index(addr);
       break;
     }
 
     case 0xB: {
-      unsigned short addr = instruction & 0xFFF;
+      uint16_t addr = instruction & 0xFFF;
       Chip8::jump_plus(addr);
       break;
     }
 
     case 0xC: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char val = instruction & 0xFF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t val = instruction & 0xFF;
       Chip8::set_reg_rand(x_reg, val);
       break;
     }
 
     case 0xD: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
-      unsigned char y_reg = (instruction >> 4) & 0xF;
-      unsigned char height = instruction & 0xF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
+      uint8_t y_reg = (instruction >> 4) & 0xF;
+      uint8_t height = instruction & 0xF;
       Chip8::display(x_reg, y_reg, height);
       break;
     }
 
     case 0xE: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
       switch (instruction & 0xFF) {
         case 0x9E:
           Chip8::skip_key_pressed(x_reg);
@@ -581,7 +564,7 @@ void Chip8::decode(unsigned short instruction) {
     }
 
     case 0xF: {
-      unsigned char x_reg = (instruction >> 8) & 0xF;
+      uint8_t x_reg = (instruction >> 8) & 0xF;
       switch (instruction & 0xFF) {
         case 0x07:
           Chip8::set_reg_delay(x_reg);
@@ -629,9 +612,10 @@ void Chip8::decode(unsigned short instruction) {
 
 /*-----------------[Opcodes]-----------------*/
 
+//[CHIP-8]
 //(00E0) clear screen
 void Chip8::clear() {
-  std::memset(screen, 0, WIDTH * HEIGHT * sizeof(unsigned char));
+  std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED,
                   GL_UNSIGNED_BYTE, screen);
 }
@@ -640,71 +624,71 @@ void Chip8::clear() {
 void Chip8::return_subroutine() { PC = Chip8::pop(); }
 
 //(1NNN) jump to adress NNN
-void Chip8::jump(unsigned short addr) { PC = addr; }
+void Chip8::jump(uint16_t addr) { PC = addr; }
 
 //(2NNN) start subroutine at NNN
-void Chip8::start_subroutine(unsigned short addr) {
+void Chip8::start_subroutine(uint16_t addr) {
   Chip8::push(PC);
   PC = addr;
 }
 
 //(3XNN) skip if VX == NN
-void Chip8::skip_equals(unsigned char x_reg, unsigned char val) {
+void Chip8::skip_equals(uint8_t x_reg, uint8_t val) {
   if (registers[x_reg] == val) {
     PC += 2;
   }
 }
 
 //(4XNN) skip if VX != NN
-void Chip8::skip_not_equals(unsigned char x_reg, unsigned char val) {
+void Chip8::skip_not_equals(uint8_t x_reg, uint8_t val) {
   if (registers[x_reg] != val) {
     PC += 2;
   }
 }
 
 //(5XY0) skip if VX == VY
-void Chip8::skip_reg_equals(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::skip_reg_equals(uint8_t x_reg, uint8_t y_reg) {
   if (registers[x_reg] == registers[y_reg]) {
     PC += 2;
   }
 }
 
 //(6XNN) set VX to NN
-void Chip8::set(unsigned char x_reg, unsigned char val) {
+void Chip8::set(uint8_t x_reg, uint8_t val) {
   registers[x_reg] = val;
 }
 
 //(7XNN) add NN to VX
-void Chip8::add(unsigned char x_reg, unsigned char val) {
+void Chip8::add(uint8_t x_reg, uint8_t val) {
   registers[x_reg] += val;
 }
 
 //(8XY0) set VX to value of VY
-void Chip8::set_reg_equals(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) {
   registers[x_reg] = registers[y_reg];
 }
 
 //(8XY1) set VX to or of value of VX and VY
-void Chip8::set_reg_or(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
   registers[x_reg] |= registers[y_reg];
   registers[0xF] = 0;
 }
 
 //(8XY2) set VX to and of value of VX and VY
-void Chip8::set_reg_and(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
   registers[x_reg] &= registers[y_reg];
   registers[0xF] = 0;
 }
 
 //(8XY3) set VX to xor of value of VX and VY
-void Chip8::set_reg_xor(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::set_reg_xor(uint8_t x_reg, uint8_t y_reg) {
   registers[x_reg] ^= registers[y_reg];
   registers[0xF] = 0;
 }
 
 // 8XY4 set VX to sum of value of VX and VY and set VF to 1 if overflow, 0 else
-void Chip8::set_reg_sum(unsigned char x_reg, unsigned char y_reg) {
-  unsigned char x = registers[x_reg];
+void Chip8::set_reg_sum(uint8_t x_reg, uint8_t y_reg) {
+  uint8_t x = registers[x_reg];
   registers[x_reg] += registers[y_reg];
   if (registers[x_reg] < x || registers[x_reg] < registers[y_reg]) {
     registers[0xF] = 1;
@@ -715,8 +699,8 @@ void Chip8::set_reg_sum(unsigned char x_reg, unsigned char y_reg) {
 
 //(8XY5) set VX to diff of value of VX and VY and set VF to 0 if underflow, 1
 // else
-void Chip8::set_reg_sub_Y(unsigned char x_reg, unsigned char y_reg) {
-  unsigned char underflow = 1;
+void Chip8::set_reg_sub_Y(uint8_t x_reg, uint8_t y_reg) {
+  uint8_t underflow = 1;
   if (registers[y_reg] > registers[x_reg]) {
     underflow = 0;
   }
@@ -726,16 +710,16 @@ void Chip8::set_reg_sub_Y(unsigned char x_reg, unsigned char y_reg) {
 
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
 // shifted out
-void Chip8::set_reg_shift_right(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::set_reg_shift_right(uint8_t x_reg, uint8_t y_reg) {
   registers[x_reg] = registers[y_reg];
-  unsigned char out = registers[x_reg] & 1;
+  uint8_t out = registers[x_reg] & 1;
   registers[x_reg] >>= 1;
   registers[0xF] = out;
 }
 
 //(8XY7) set VX to value of VY - VX and set VF to 0 if underflow, 1 else
-void Chip8::set_reg_sub_X(unsigned char x_reg, unsigned char y_reg) {
-  unsigned char underflow = 1;
+void Chip8::set_reg_sub_X(uint8_t x_reg, uint8_t y_reg) {
+  uint8_t underflow = 1;
   if (registers[x_reg] > registers[y_reg]) {
     underflow = 0;
   }
@@ -745,39 +729,39 @@ void Chip8::set_reg_sub_X(unsigned char x_reg, unsigned char y_reg) {
 
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
 // shifted out
-void Chip8::set_reg_shift_left(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
   registers[x_reg] = registers[y_reg];
-  unsigned char out = (registers[x_reg] >> 7) & 1;
+  uint8_t out = (registers[x_reg] >> 7) & 1;
   registers[x_reg] <<= 1;
   registers[0xF] = out;
 }
 
 //(9XY0) skip if VX != VY
-void Chip8::skip_reg_not_equals(unsigned char x_reg, unsigned char y_reg) {
+void Chip8::skip_reg_not_equals(uint8_t x_reg, uint8_t y_reg) {
   if (registers[x_reg] != registers[y_reg]) {
     PC += 2;
   }
 }
 
 //(ANNN) set index to NNN
-void Chip8::set_index(unsigned short addr) { I = addr; }
+void Chip8::set_index(uint16_t addr) { I = addr; }
 
 //(BNNN) jump to NNN + V0
-void Chip8::jump_plus(unsigned short addr) { PC = addr + registers[0x0]; }
+void Chip8::jump_plus(uint16_t addr) { PC = addr + registers[0x0]; }
 
 //(CXNN) set VX to random byte (bitwise AND) NN
-void Chip8::set_reg_rand(unsigned char x_reg, unsigned char val) {
-  unsigned char res = rand() % 256;
+void Chip8::set_reg_rand(uint8_t x_reg, uint8_t val) {
+  uint8_t res = rand() % 256;
   registers[x_reg] = res & val;
 }
 
 //(DXYN) draw sprite pointed at by I at (V[X], V[Y]) with height N
-void Chip8::display(unsigned char x_reg, unsigned char y_reg,
-                    unsigned char height) {
+void Chip8::display(uint8_t x_reg, uint8_t y_reg,
+                    uint8_t height) {
   registers[0xF] = 0;
-  unsigned short sprite_index = I;
-  unsigned char x = registers[x_reg] % WIDTH;
-  unsigned char y = registers[y_reg] % HEIGHT;
+  uint16_t sprite_index = I;
+  uint8_t x = registers[x_reg] % WIDTH;
+  uint8_t y = registers[y_reg] % HEIGHT;
 
   // loop through rows and cols of the screen and update individual screen
   // pixels
@@ -786,7 +770,7 @@ void Chip8::display(unsigned char x_reg, unsigned char y_reg,
       break;
     }
 
-    unsigned char sprite_row = memory[sprite_index];
+    uint8_t sprite_row = memory[sprite_index];
     int pixel_index = 7;
 
     for (int col = x; col < (x + 8); col++) {
@@ -794,7 +778,7 @@ void Chip8::display(unsigned char x_reg, unsigned char y_reg,
         break;
       }
 
-      unsigned char bit = (sprite_row >> pixel_index) & 1;
+      uint8_t bit = (sprite_row >> pixel_index) & 1;
       pixel_index--;
 
       int screen_index = (row * WIDTH) + col;
@@ -811,26 +795,26 @@ void Chip8::display(unsigned char x_reg, unsigned char y_reg,
 }
 
 //(EX9E) skip if key represented by VX's lower nibble is pressed
-void Chip8::skip_key_pressed(unsigned char x_reg) {
-  unsigned char key = registers[x_reg] & 0xF;
+void Chip8::skip_key_pressed(uint8_t x_reg) {
+  uint8_t key = registers[x_reg] & 0xF;
   if ((keys >> key) & 1) {
     PC += 2;
   }
 }
 
 //(EXA1) skip if key represented by VX's lower nibble is not pressed
-void Chip8::skip_key_not_pressed(unsigned char x_reg) {
-  unsigned char key = registers[x_reg] & 0xF;
+void Chip8::skip_key_not_pressed(uint8_t x_reg) {
+  uint8_t key = registers[x_reg] & 0xF;
   if (!((keys >> key) & 1)) {
     PC += 2;
   }
 }
 
 //(FX07) set VX to value of delay timer
-void Chip8::set_reg_delay(unsigned char x_reg) { registers[x_reg] = delay; }
+void Chip8::set_reg_delay(uint8_t x_reg) { registers[x_reg] = delay; }
 
 //(FX0A) wait for key press and release and set VX to that key
-void Chip8::set_reg_keypress(unsigned char x_reg) {
+void Chip8::set_reg_keypress(uint8_t x_reg) {
   if (!waiting) pressed = 0xFF;
   waiting = true;
   if (pressed == 0xFF) {
@@ -842,51 +826,83 @@ void Chip8::set_reg_keypress(unsigned char x_reg) {
 }
 
 //(FX15) set delay timer to VX
-void Chip8::set_delay(unsigned char x_reg) { delay = registers[x_reg]; }
+void Chip8::set_delay(uint8_t x_reg) { delay = registers[x_reg]; }
 
 //(FX18) set sound timer to VX
-void Chip8::set_sound(unsigned char x_reg) { sound = registers[x_reg]; }
+void Chip8::set_sound(uint8_t x_reg) { sound = registers[x_reg]; }
 
 //(FX1E) add VX to I
-void Chip8::add_index(unsigned char x_reg) { I += registers[x_reg]; }
+void Chip8::add_index(uint8_t x_reg) { I += registers[x_reg]; }
 
 //(FX29) set I to memory location of character represented by lower nibble of VX
-void Chip8::set_index_font(unsigned char x_reg) {
-  unsigned char ch = registers[x_reg] & 0xF;
+void Chip8::set_index_font(uint8_t x_reg) {
+  uint8_t ch = registers[x_reg] & 0xF;
   I = (0x050 + (5 * ch));
   std::cout << std::hex << (int)memory[I] << std::endl;
 }
 
 //(FX33) set memory at I, I+1, I+2 to be the hundredths, tens, and ones place of
 // the decimal representation of VX
-void Chip8::set_reg_BCD(unsigned char x_reg) {
+void Chip8::set_reg_BCD(uint8_t x_reg) {
   int num = registers[x_reg];
   for (int offset = 2; offset >= 0; offset--) {
-    memory[I + (unsigned short)offset] = (unsigned char)(num % 10);
+    memory[I + (uint16_t)offset] = (uint8_t)(num % 10);
     num /= 10;
   }
 }
 
 //(FX55) write contents of V0 to VX to memory at I (classic)
-void Chip8::write_reg_mem(unsigned char x_reg) {
+void Chip8::write_reg_mem(uint8_t x_reg) {
   // TODO make toggle for below behavior
   // classic behavior modifies I
   // modern behavior doesn't
-  unsigned short& addr = I;
-  for (unsigned char reg = 0; reg <= x_reg; reg++) {
+  uint16_t addr = I;
+  uint16_t *addr_ptr = &addr;
+  if (mode == 0){
+    addr_ptr = &I;
+  }
+  for (uint8_t reg = 0; reg <= x_reg; reg++) {
     memory[I] = registers[reg];
-    addr += 1;
+    *addr_ptr += 1;
   }
 }
 
 //(FX65) read contents of memory at I into V0 to VX (classic)
-void Chip8::read_mem_reg(unsigned char x_reg) {
+void Chip8::read_mem_reg(uint8_t x_reg) {
   // TODO make toggle for below behavior
   // classic behavior modifies I
   // modern behavior doesn't
-  unsigned short& addr = I;
-  for (unsigned char reg = 0; reg <= x_reg; reg++) {
+  uint16_t addr = I;
+  uint16_t *addr_ptr = &addr;
+  if (mode == 0){
+    addr_ptr = &I;
+  }
+  for (uint8_t reg = 0; reg <= x_reg; reg++) {
     registers[reg] = memory[I];
-    addr += 1;
+    *addr_ptr += 1;
   }
 }
+
+
+//[SCHIP-8-1.1]
+
+//(00CN) scroll screen down by N pixels 
+void Chip8::scroll_down_n(uint8_t val){
+  //SCHIP Quirk: lores scrolls half
+  if (lores) {
+    val /= 2;
+  }
+  //start from bottom and replace with n heigher if in bounds else set to 0
+  for (int row=HEIGHT-1; row >= 0; row--){
+    for (int col=WIDTH-1; col >= 0; col--){
+      int index = (row*WIDTH) + col;
+      if ((row-val) >= 0){
+        int replace_index = ((row-val)*WIDTH) + col;
+        screen[index] = screen[replace_index];
+      } else {
+        screen[index] = 0;
+      }
+    }
+  }
+}
+
