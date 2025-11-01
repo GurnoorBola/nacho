@@ -30,7 +30,7 @@ Users on other platforms or those who prefer to build from source can compile GL
 * Place programs you want to run on the emulator in the games directory of the project. (Create if it doesn't exist)
 * Use the UI to slelect your game from the list and have fun! 
 
-### Work In Progress 
+## Work In Progress 
 
 * Fully setup SCHIP and XO-chip functionality
 * Make UI nicer
