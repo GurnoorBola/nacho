@@ -6,6 +6,11 @@
 #include <cstring>
 #include <fstream>
 
+#define CHIP8 0
+#define SCHIP1_1 1
+#define SCHIP_MODERN 2
+#define XO_CHIP 3
+
 uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
     0x20, 0x60, 0x20, 0x20, 0x70,  // 1
@@ -527,7 +532,12 @@ void Chip8::decode(uint16_t instruction) {
 
     case 0xB: {
       uint16_t addr = instruction & 0xFFF;
-      Chip8::jump_plus(addr);
+      if (mode == SCHIP1_1 || mode == SCHIP_MODERN){
+        uint8_t x_reg = (instruction >> 8) & 0xF; 
+        Chip8::jump_plus_reg(addr, x_reg);
+      } else {
+        Chip8::jump_plus(addr);
+      }
       break;
     }
 
@@ -906,3 +916,74 @@ void Chip8::scroll_down_n(uint8_t val){
   }
 }
 
+//(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
+void Chip8::scroll_right_four(){
+  uint8_t val = 4;
+  if (lores) {
+    val /= 2;
+  }
+
+  //traverse right to left top to down 
+  for (int row=0; row < HEIGHT; row++){
+    for (int col=WIDTH-1; col >= 0; col--){
+      int index = (row*WIDTH) + col;
+      if ((col-val) >= 0){
+        int replace_index = (row*WIDTH) + (col-val);
+        screen[index] = screen[replace_index];
+      } else {
+        screen[index] = 0;
+      }
+    }
+  }
+} 
+
+
+//(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
+void Chip8::scroll_Left_four(){
+  uint8_t val = 4;
+  if (lores) {
+    val /= 2;
+  }
+
+  //traverse left to right top to down 
+  for (int row=0; row < HEIGHT; row++){
+    for (int col=0; col < WIDTH; col++){
+      int index = (row*WIDTH) + col;
+      if ((col+val) < WIDTH){
+        int replace_index = (row*WIDTH) + (col+val);
+        screen[index] = screen[replace_index];
+      } else {
+        screen[index] = 0;
+      }
+    }
+  }
+}
+
+//(00FD) exit interpreter
+void Chip8::exit(){
+  terminate();
+} 
+
+//(00FE) switch to lores (64x32) mode 
+void Chip8::switch_lores(){
+  //SCHIP Quirk: original didnt clear screen
+  if (mode == 1){
+    clear();
+  }
+  lores = true;
+}
+
+//(00FE) switch to hires (128x64) mode 
+void Chip8::switch_hires(){
+  //SCHIP Quirk: original didnt clear screen
+  if (mode == 1){
+    clear();
+  }
+  lores = false;
+}
+
+//(BXNN) jump to XNN + V[X] (Note: this replaces BNNN which is used for classic and XO chip)
+void Chip8::jump_plus_reg(uint16_t addr, uint8_t x_reg){
+  uint8_t val = registers[x_reg];
+  PC = addr + val;
+}

@@ -25,7 +25,6 @@ private:
 
     uint8_t flags[16] = {};
     bool lores = false;
-    bool hires = true;
 
     uint8_t pressed = 0xFF;
     bool waiting = false;
@@ -85,7 +84,7 @@ private:
     void exit(); //00FD exit interpreter
     void switch_lores(); //00FE switch to lores (64x32) mode (SCHIP Quirk: original didnt clear screen)(but I will MODERN)
     void switch_hires(); //00FE switch to hires (128x64) mode (SCHIP Quirk: original didnt clear screen)(but I will MODERN)
-    void jump_plus_reg(uint16_t addr, uint8_t val); //BXNN jump to XNN + V[X] (Note: this replaces BNNN which is used for classic and XO chip)
+    void jump_plus_reg(uint16_t addr, uint8_t x_reg); //BXNN jump to XNN + V[X] (Note: this replaces BNNN which is used for classic and XO chip)
     void draw_sprite(uint8_t x_reg, uint8_t y_reg); //DXY0 draw (16x16) sprite at V[X], V[Y] starting from I (see site for quirks)
     void set_index_font_big(); //FX30 set I to big font (10 line) for digit in lowest nibble of V[X]
     void write_flags_storage(uint8_t x_reg); //FX75 write V[0] to V[X] in flags storage
