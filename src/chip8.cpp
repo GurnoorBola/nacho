@@ -527,8 +527,8 @@ void Chip8::decode(uint16_t instruction) {
 
     case 0xB: {
       uint16_t addr = instruction & 0xFFF;
-      if (mode == SCHIP1_1 || mode == SCHIP_MODERN){
-        uint8_t x_reg = (instruction >> 8) & 0xF; 
+      if (mode == SCHIP1_1 || mode == SCHIP_MODERN) {
+        uint8_t x_reg = (instruction >> 8) & 0xF;
         Chip8::jump_plus_reg(addr, x_reg);
       } else {
         Chip8::jump_plus(addr);
@@ -659,14 +659,10 @@ void Chip8::skip_reg_equals(uint8_t x_reg, uint8_t y_reg) {
 }
 
 //(6XNN) set VX to NN
-void Chip8::set(uint8_t x_reg, uint8_t val) {
-  registers[x_reg] = val;
-}
+void Chip8::set(uint8_t x_reg, uint8_t val) { registers[x_reg] = val; }
 
 //(7XNN) add NN to VX
-void Chip8::add(uint8_t x_reg, uint8_t val) {
-  registers[x_reg] += val;
-}
+void Chip8::add(uint8_t x_reg, uint8_t val) { registers[x_reg] += val; }
 
 //(8XY0) set VX to value of VY
 void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) {
@@ -761,30 +757,30 @@ void Chip8::set_reg_rand(uint8_t x_reg, uint8_t val) {
 }
 
 //(DXYN) draw sprite pointed at by I at (V[X], V[Y]) with height N
-void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
-                    uint8_t height) {
+void Chip8::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
   registers[0xF] = 0;
 
   uint16_t sprite_index = I;
 
   int scale = 1;
-  if (lores){
+  if (lores) {
     scale = 2;
   }
-  uint8_t x = registers[x_reg]*scale;
-  uint8_t y = registers[y_reg]*scale;
+  uint8_t x = registers[x_reg] * scale;
+  uint8_t y = registers[y_reg] * scale;
   x %= WIDTH;
   y %= HEIGHT;
 
-  height*=scale;
+  height *= scale;
   uint8_t width = 8 * scale;
-
 
   // loop through rows and cols of the screen and update individual screen
   // pixels
-  for (int row = y; row < (y + height); row+=scale) {
+  for (int row = y; row < (y + height); row += scale) {
     if (row >= HEIGHT) {
-      if (!lores) { registers[0xF] += ((y+height) - HEIGHT); } 
+      if (!lores) {
+        registers[0xF] += ((y + height) - HEIGHT);
+      }
       break;
     }
 
@@ -793,7 +789,7 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
     uint8_t sprite_row = memory[sprite_index];
     int pixel_index = 7;
 
-    for (int col = x; col < (x + width); col+=scale) {
+    for (int col = x; col < (x + width); col += scale) {
       if (col >= WIDTH) {
         break;
       }
@@ -806,7 +802,8 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
         int top_right = (row * WIDTH) + col + 1;
         int bot_left = ((row + 1) * WIDTH) + col;
         int bot_right = ((row + 1) * WIDTH) + col + 1;
-        if ((screen[top_left] & bit) || (screen[top_right] & bit) || (screen[bot_left] & bit) || (screen[bot_right] & bit)) {
+        if ((screen[top_left] & bit) || (screen[top_right] & bit) ||
+            (screen[bot_left] & bit) || (screen[bot_right] & bit)) {
           registers[0xF] = 1;
         }
         screen[top_left] ^= bit;
@@ -815,13 +812,15 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
         screen[bot_right] ^= bit;
       } else {
         int screen_index = (row * WIDTH) + col;
-        if (screen[screen_index] & bit){
+        if (screen[screen_index] & bit) {
           collision = true;
         }
         screen[screen_index] ^= bit;
       }
     }
-    if (!lores && collision) { registers[0xF]++; }
+    if (!lores && collision) {
+      registers[0xF]++;
+    }
     sprite_index++;
   }
   draw = true;
@@ -892,8 +891,8 @@ void Chip8::write_reg_mem(uint8_t x_reg) {
   // classic behavior modifies I
   // modern behavior doesn't
   uint16_t addr = I;
-  uint16_t *addr_ptr = &addr;
-  if (mode == 0){
+  uint16_t* addr_ptr = &addr;
+  if (mode == 0) {
     addr_ptr = &I;
   }
   for (uint8_t reg = 0; reg <= x_reg; reg++) {
@@ -908,8 +907,8 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
   // classic behavior modifies I
   // modern behavior doesn't
   uint16_t addr = I;
-  uint16_t *addr_ptr = &addr;
-  if (mode == 0){
+  uint16_t* addr_ptr = &addr;
+  if (mode == 0) {
     addr_ptr = &I;
   }
   for (uint8_t reg = 0; reg <= x_reg; reg++) {
@@ -918,21 +917,20 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
   }
 }
 
-
 //[SCHIP-8-1.1]
 
-//(00CN) scroll screen down by N pixels 
-void Chip8::scroll_down_n(uint8_t val){
-  //SCHIP Quirk: lores scrolls half
+//(00CN) scroll screen down by N pixels
+void Chip8::scroll_down_n(uint8_t val) {
+  // SCHIP Quirk: lores scrolls half
   if (lores) {
     val /= 2;
   }
-  //start from bottom and replace with n heigher if in bounds else set to 0
-  for (int row=HEIGHT-1; row >= 0; row--){
-    for (int col=WIDTH-1; col >= 0; col--){
-      int index = (row*WIDTH) + col;
-      if ((row-val) >= 0){
-        int replace_index = ((row-val)*WIDTH) + col;
+  // start from bottom and replace with n heigher if in bounds else set to 0
+  for (int row = HEIGHT - 1; row >= 0; row--) {
+    for (int col = WIDTH - 1; col >= 0; col--) {
+      int index = (row * WIDTH) + col;
+      if ((row - val) >= 0) {
+        int replace_index = ((row - val) * WIDTH) + col;
         screen[index] = screen[replace_index];
       } else {
         screen[index] = 0;
@@ -942,40 +940,39 @@ void Chip8::scroll_down_n(uint8_t val){
 }
 
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
-void Chip8::scroll_right_four(){
+void Chip8::scroll_right_four() {
   uint8_t val = 4;
   if (lores) {
     val /= 2;
   }
 
-  //traverse right to left top to down 
-  for (int row=0; row < HEIGHT; row++){
-    for (int col=WIDTH-1; col >= 0; col--){
-      int index = (row*WIDTH) + col;
-      if ((col-val) >= 0){
-        int replace_index = (row*WIDTH) + (col-val);
+  // traverse right to left top to down
+  for (int row = 0; row < HEIGHT; row++) {
+    for (int col = WIDTH - 1; col >= 0; col--) {
+      int index = (row * WIDTH) + col;
+      if ((col - val) >= 0) {
+        int replace_index = (row * WIDTH) + (col - val);
         screen[index] = screen[replace_index];
       } else {
         screen[index] = 0;
       }
     }
   }
-} 
-
+}
 
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
-void Chip8::scroll_Left_four(){
+void Chip8::scroll_Left_four() {
   uint8_t val = 4;
   if (lores) {
     val /= 2;
   }
 
-  //traverse left to right top to down 
-  for (int row=0; row < HEIGHT; row++){
-    for (int col=0; col < WIDTH; col++){
-      int index = (row*WIDTH) + col;
-      if ((col+val) < WIDTH){
-        int replace_index = (row*WIDTH) + (col+val);
+  // traverse left to right top to down
+  for (int row = 0; row < HEIGHT; row++) {
+    for (int col = 0; col < WIDTH; col++) {
+      int index = (row * WIDTH) + col;
+      if ((col + val) < WIDTH) {
+        int replace_index = (row * WIDTH) + (col + val);
         screen[index] = screen[replace_index];
       } else {
         screen[index] = 0;
@@ -985,36 +982,35 @@ void Chip8::scroll_Left_four(){
 }
 
 //(00FD) exit interpreter
-void Chip8::exit(){
-  terminate();
-} 
+void Chip8::exit() { terminate(); }
 
-//(00FE) switch to lores (64x32) mode 
-void Chip8::switch_lores(){
-  //SCHIP Quirk: original didnt clear screen
-  if (mode != SCHIP1_1){
+//(00FE) switch to lores (64x32) mode
+void Chip8::switch_lores() {
+  // SCHIP Quirk: original didnt clear screen
+  if (mode != SCHIP1_1) {
     clear();
   }
   lores = true;
 }
 
-//(00FE) switch to hires (128x64) mode 
-void Chip8::switch_hires(){
-  //SCHIP Quirk: original didnt clear screen
-  if (mode != SCHIP1_1){
+//(00FE) switch to hires (128x64) mode
+void Chip8::switch_hires() {
+  // SCHIP Quirk: original didnt clear screen
+  if (mode != SCHIP1_1) {
     clear();
   }
   lores = false;
 }
 
-//(BXNN) jump to XNN + V[X] (Note: this replaces BNNN which is used for classic and XO chip)
-void Chip8::jump_plus_reg(uint16_t addr, uint8_t x_reg){
+//(BXNN) jump to XNN + V[X] (Note: this replaces BNNN which is used for classic
+//and XO chip)
+void Chip8::jump_plus_reg(uint16_t addr, uint8_t x_reg) {
   uint8_t val = registers[x_reg];
   PC = addr + val;
 }
 
 //(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
-void Chip8::display_16(uint8_t x_reg, uint8_t y_reg){
+void Chip8::display_16(uint8_t x_reg, uint8_t y_reg) {
   if (mode == SCHIP1_1 && lores) {
     display_8(x_reg, y_reg, 0xF);
     return;
@@ -1035,7 +1031,8 @@ void Chip8::display_16(uint8_t x_reg, uint8_t y_reg){
 
     bool collision = false;
 
-    uint16_t sprite_row = (memory[sprite_index] << 8) + memory[sprite_index+1];
+    uint16_t sprite_row =
+        (memory[sprite_index] << 8) + memory[sprite_index + 1];
 
     int pixel_index = 15;
 
@@ -1053,7 +1050,9 @@ void Chip8::display_16(uint8_t x_reg, uint8_t y_reg){
       }
       screen[screen_index] ^= bit;
     }
-    if (collision) { registers[0xF]++; }
+    if (collision) {
+      registers[0xF]++;
+    }
     sprite_index += 2;
   }
   draw = true;
