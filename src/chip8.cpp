@@ -6,11 +6,6 @@
 #include <cstring>
 #include <fstream>
 
-#define CHIP8 0
-#define SCHIP1_1 1
-#define SCHIP_MODERN 2
-#define XO_CHIP 3
-
 uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
     0x20, 0x60, 0x20, 0x20, 0x70,  // 1
@@ -92,7 +87,7 @@ int Chip8::loadProgram(std::string filename) {
 
 void Chip8::framebuffer_size_callback(GLFWwindow* window, int width,
                                       int height) {
-  glViewport(0, 0, WIDTH * 20, HEIGHT * 20);
+  glViewport(0, 0, WIDTH * 10, HEIGHT * 10);
 }
 
 void Chip8::key_callback(GLFWwindow* window, int key, int scancode, int action,
@@ -268,7 +263,7 @@ int Chip8::initDisplay() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  window = glfwCreateWindow(WIDTH * 20, HEIGHT * 20, "CHIP-8", NULL, NULL);
+  window = glfwCreateWindow(WIDTH * 10, HEIGHT * 10, "CHIP-8", NULL, NULL);
   if (window == NULL) {
     std::cerr << "Failed to create GLFW window" << std::endl;
     return 1;
@@ -291,7 +286,7 @@ int Chip8::initDisplay() {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init();
 
-  glViewport(0, 0, WIDTH * 20, HEIGHT * 20);
+  glViewport(0, 0, WIDTH * 10, HEIGHT * 10);
   glfwSetFramebufferSizeCallback(window, Chip8::framebuffer_size_callback);
 
   // set clear color
@@ -552,7 +547,7 @@ void Chip8::decode(uint16_t instruction) {
       uint8_t x_reg = (instruction >> 8) & 0xF;
       uint8_t y_reg = (instruction >> 4) & 0xF;
       uint8_t height = instruction & 0xF;
-      Chip8::display(x_reg, y_reg, height);
+      Chip8::display_8(x_reg, y_reg, height);
       break;
     }
 
@@ -766,16 +761,23 @@ void Chip8::set_reg_rand(uint8_t x_reg, uint8_t val) {
 }
 
 //(DXYN) draw sprite pointed at by I at (V[X], V[Y]) with height N
-void Chip8::display(uint8_t x_reg, uint8_t y_reg,
+void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
                     uint8_t height) {
   registers[0xF] = 0;
   uint16_t sprite_index = I;
-  uint8_t x = registers[x_reg] % WIDTH;
-  uint8_t y = registers[y_reg] % HEIGHT;
+  uint8_t x = registers[x_reg];
+  uint8_t y = registers[y_reg];
+  if (mode == CHIP8) {
+    x*=2;
+    y*=2;
+    height *= 2;
+  }
+  x %= WIDTH;
+  y %= HEIGHT;
 
   // loop through rows and cols of the screen and update individual screen
   // pixels
-  for (int row = y; row < (y + height); row++) {
+  for (int row = y; row < (y + height); row+=2) {
     if (row >= HEIGHT) {
       break;
     }
@@ -783,7 +785,7 @@ void Chip8::display(uint8_t x_reg, uint8_t y_reg,
     uint8_t sprite_row = memory[sprite_index];
     int pixel_index = 7;
 
-    for (int col = x; col < (x + 8); col++) {
+    for (int col = x; col < (x + 16); col+=2) {
       if (col >= WIDTH) {
         break;
       }
@@ -791,11 +793,17 @@ void Chip8::display(uint8_t x_reg, uint8_t y_reg,
       uint8_t bit = (sprite_row >> pixel_index) & 1;
       pixel_index--;
 
-      int screen_index = (row * WIDTH) + col;
-      if (screen[screen_index] & bit) {
+      int top_left = (row * WIDTH) + col;
+      int top_right = (row * WIDTH) + col + 1;
+      int bot_left = ((row + 1) * WIDTH) + col;
+      int bot_right = ((row + 1) * WIDTH) + col + 1;
+      if ((screen[top_left] & bit) || (screen[top_right] & bit) || (screen[bot_left] & bit) || (screen[bot_right] & bit)) {
         registers[0xF] = 1;
       }
-      screen[screen_index] ^= bit;
+      screen[top_left] ^= bit;
+      screen[top_right] ^= bit;
+      screen[bot_left] ^= bit;
+      screen[bot_right] ^= bit;
     }
     sprite_index++;
   }
@@ -967,7 +975,7 @@ void Chip8::exit(){
 //(00FE) switch to lores (64x32) mode 
 void Chip8::switch_lores(){
   //SCHIP Quirk: original didnt clear screen
-  if (mode == 1){
+  if (mode != SCHIP1_1){
     clear();
   }
   lores = true;
@@ -976,7 +984,7 @@ void Chip8::switch_lores(){
 //(00FE) switch to hires (128x64) mode 
 void Chip8::switch_hires(){
   //SCHIP Quirk: original didnt clear screen
-  if (mode == 1){
+  if (mode != SCHIP1_1){
     clear();
   }
   lores = false;
@@ -986,4 +994,9 @@ void Chip8::switch_hires(){
 void Chip8::jump_plus_reg(uint16_t addr, uint8_t x_reg){
   uint8_t val = registers[x_reg];
   PC = addr + val;
+}
+
+//(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
+void Chip8::display_16(uint8_t x_reg, uint8_t y_reg){
+  
 }

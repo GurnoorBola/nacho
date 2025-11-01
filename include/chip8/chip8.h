@@ -7,8 +7,13 @@
 
 #define MAX_MEM 4096
 #define MAX_STACK 16
-#define WIDTH 64
-#define HEIGHT 32
+#define WIDTH 128 
+#define HEIGHT 64 
+
+#define CHIP8 0
+#define SCHIP1_1 1
+#define SCHIP_MODERN 2
+#define XO_CHIP 3
 
 class Chip8 {
 
@@ -64,7 +69,7 @@ private:
     void set_index(uint16_t addr); //ANNN set index to NNN
     void jump_plus(uint16_t addr); //BNNN jump to NNN + V0
     void set_reg_rand(uint8_t x_reg, uint8_t val); //CXNN set VX to random byte (bitwise AND) NN
-    void display(uint8_t x_reg, uint8_t y_reg, uint8_t height); //DXYH draw character at x, y
+    void display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height); //DXYH draw character at x, y
     void skip_key_pressed(uint8_t x_reg); //EX9E skip if key represented by VX's lower nibble is pressed
     void skip_key_not_pressed(uint8_t x_reg); //EXA1 skip if key represented by VX's lower nibble is not pressed
     void set_reg_delay(uint8_t x_reg); //FX07 set VX to value of delay timer
@@ -85,7 +90,7 @@ private:
     void switch_lores(); //00FE switch to lores (64x32) mode (SCHIP Quirk: original didnt clear screen)(but I will MODERN)
     void switch_hires(); //00FE switch to hires (128x64) mode (SCHIP Quirk: original didnt clear screen)(but I will MODERN)
     void jump_plus_reg(uint16_t addr, uint8_t x_reg); //BXNN jump to XNN + V[X] (Note: this replaces BNNN which is used for classic and XO chip)
-    void draw_sprite(uint8_t x_reg, uint8_t y_reg); //DXY0 draw (16x16) sprite at V[X], V[Y] starting from I (see site for quirks)
+    void display_16(uint8_t x_reg, uint8_t y_reg); //DXY0 draw (16x16) sprite at V[X], V[Y] starting from I (see site for quirks)
     void set_index_font_big(); //FX30 set I to big font (10 line) for digit in lowest nibble of V[X]
     void write_flags_storage(uint8_t x_reg); //FX75 write V[0] to V[X] in flags storage
     void read_flags_storage(uint8_t x_reg); //FX75 write V[0] to V[X] in flags storage
