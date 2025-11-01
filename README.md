@@ -50,3 +50,4 @@ This project is licensed under the MIT License - see the [LICENSE.md](https://gi
 * https://chip8.gulrak.net/ - Collection of CHIP-8 opcode info
 * http://devernay.free.fr/hacks/chip8/C8TECH10.HTM - Cowgod's technical reference
 *  https://github.com/Timendus/chip8-test-suite - Amazing compilation of CHIP-8 testing programs 
+* https://learnopengl.com/ - The GOAT of OpenGL
