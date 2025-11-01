@@ -29,7 +29,7 @@ private:
     uint8_t registers[16] = {};
 
     uint8_t flags[16] = {};
-    bool lores = false;
+    bool lores = true;
 
     uint8_t pressed = 0xFF;
     bool waiting = false;

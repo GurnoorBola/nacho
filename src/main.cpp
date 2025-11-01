@@ -17,7 +17,7 @@ int main() {
 
   // TODO prompt for filename
 
-  while (chip8.loadProgram("4-flags.ch8")) {
+  while (chip8.loadProgram("slipperyslope.ch8")) {
     std::cout << "Error loading file. Please make sure the file is in the "
                  "\"games/\" directory."
               << std::endl;

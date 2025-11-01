@@ -764,28 +764,36 @@ void Chip8::set_reg_rand(uint8_t x_reg, uint8_t val) {
 void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
                     uint8_t height) {
   registers[0xF] = 0;
+
   uint16_t sprite_index = I;
-  uint8_t x = registers[x_reg];
-  uint8_t y = registers[y_reg];
-  if (mode == CHIP8) {
-    x*=2;
-    y*=2;
-    height *= 2;
+
+  int scale = 1;
+  if (lores){
+    scale = 2;
   }
+  uint8_t x = registers[x_reg]*scale;
+  uint8_t y = registers[y_reg]*scale;
   x %= WIDTH;
   y %= HEIGHT;
 
+  height*=scale;
+  uint8_t width = 8 * scale;
+
+
   // loop through rows and cols of the screen and update individual screen
   // pixels
-  for (int row = y; row < (y + height); row+=2) {
+  for (int row = y; row < (y + height); row+=scale) {
     if (row >= HEIGHT) {
+      if (!lores) { registers[0xF] += ((y+height) - HEIGHT); } 
       break;
     }
+
+    bool collision = false;
 
     uint8_t sprite_row = memory[sprite_index];
     int pixel_index = 7;
 
-    for (int col = x; col < (x + 16); col+=2) {
+    for (int col = x; col < (x + width); col+=scale) {
       if (col >= WIDTH) {
         break;
       }
@@ -793,18 +801,27 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg,
       uint8_t bit = (sprite_row >> pixel_index) & 1;
       pixel_index--;
 
-      int top_left = (row * WIDTH) + col;
-      int top_right = (row * WIDTH) + col + 1;
-      int bot_left = ((row + 1) * WIDTH) + col;
-      int bot_right = ((row + 1) * WIDTH) + col + 1;
-      if ((screen[top_left] & bit) || (screen[top_right] & bit) || (screen[bot_left] & bit) || (screen[bot_right] & bit)) {
-        registers[0xF] = 1;
+      if (lores) {
+        int top_left = (row * WIDTH) + col;
+        int top_right = (row * WIDTH) + col + 1;
+        int bot_left = ((row + 1) * WIDTH) + col;
+        int bot_right = ((row + 1) * WIDTH) + col + 1;
+        if ((screen[top_left] & bit) || (screen[top_right] & bit) || (screen[bot_left] & bit) || (screen[bot_right] & bit)) {
+          registers[0xF] = 1;
+        }
+        screen[top_left] ^= bit;
+        screen[top_right] ^= bit;
+        screen[bot_left] ^= bit;
+        screen[bot_right] ^= bit;
+      } else {
+        int screen_index = (row * WIDTH) + col;
+        if (screen[screen_index] & bit){
+          collision = true;
+        }
+        screen[screen_index] ^= bit;
       }
-      screen[top_left] ^= bit;
-      screen[top_right] ^= bit;
-      screen[bot_left] ^= bit;
-      screen[bot_right] ^= bit;
     }
+    if (!lores && collision) { registers[0xF]++; }
     sprite_index++;
   }
   draw = true;
@@ -998,5 +1015,48 @@ void Chip8::jump_plus_reg(uint16_t addr, uint8_t x_reg){
 
 //(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
 void Chip8::display_16(uint8_t x_reg, uint8_t y_reg){
-  
+  if (mode == SCHIP1_1 && lores) {
+    display_8(x_reg, y_reg, 0xF);
+    return;
+  }
+
+  registers[0xF] = 0;
+  uint16_t sprite_index = I;
+  uint8_t x = registers[x_reg] % WIDTH;
+  uint8_t y = registers[y_reg] % HEIGHT;
+
+  // loop through rows and cols of the screen and update individual screen
+  // pixels
+  for (int row = y; row < (y + 16); row++) {
+    if (row >= HEIGHT) {
+      registers[0xF] += ((y + 16) - HEIGHT);
+      break;
+    }
+
+    bool collision = false;
+
+    uint16_t sprite_row = (memory[sprite_index] << 8) + memory[sprite_index+1];
+
+    int pixel_index = 15;
+
+    for (int col = x; col < (x + 16); col++) {
+      if (col >= WIDTH) {
+        break;
+      }
+
+      uint8_t bit = (sprite_row >> pixel_index) & 1;
+      pixel_index--;
+
+      int screen_index = (row * WIDTH) + col;
+      if (screen[screen_index] & bit) {
+        collision = true;
+      }
+      screen[screen_index] ^= bit;
+    }
+    if (collision) { registers[0xF]++; }
+    sprite_index += 2;
+  }
+  draw = true;
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED,
+                  GL_UNSIGNED_BYTE, screen);
 }
