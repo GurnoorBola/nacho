@@ -130,12 +130,12 @@ class Chip8 {
   void display_16(uint8_t x_reg,
                   uint8_t y_reg);  // DXY0 draw (16x16) sprite at V[X], V[Y]
                                    // starting from I (see site for quirks)
-  void set_index_font_big();  // FX30 set I to big font (10 line) for digit in
+  void set_index_font_big(uint8_t x_reg);  // FX30 set I to big font (10 line) for digit in
                               // lowest nibble of V[X]
   void write_flags_storage(
       uint8_t x_reg);  // FX75 write V[0] to V[X] in flags storage
   void read_flags_storage(
-      uint8_t x_reg);  // FX75 write V[0] to V[X] in flags storage
+      uint8_t x_reg);  // FX85 read flags[0] to flags[X] into registers 
 
   // opengl window initialization
   GLFWwindow* window = NULL;
