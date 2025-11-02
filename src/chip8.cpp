@@ -419,17 +419,59 @@ uint16_t Chip8::fetch() {
 void Chip8::decode(uint16_t instruction) {
     switch (instruction >> 12) {
         case 0x0: {
-            switch (instruction & 0xFFF) {
-                case 0x0E0:
-                    Chip8::clear();
-                    break;
+            switch ((instruction >> 4) & 0xF) {
+                case 0xE: {
+                    switch (instruction & 0xF) {
+                        case 0x0: 
+                            Chip8::clear();
+                            break;
+                        
+                        case 0xE: 
+                            Chip8::return_subroutine();
+                            break;
 
-                case 0x0EE:
-                    Chip8::return_subroutine();
+                        default:
+                            std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
+                    }
                     break;
+                }
+                
+                case 0xC: {
+                    uint8_t val = instruction & 0xF;
+                    Chip8::scroll_down_n(val);
+                    break;
+                }
+
+                case 0xF: {
+                    switch (instruction & 0xF){
+                        case 0xB: 
+                            Chip8::scroll_right_four();
+                            break;
+                         
+                        case 0xC: 
+                            Chip8::scroll_Left_four();
+                            break;
+                        
+                        case 0xD: 
+                            Chip8::exit();
+                            break;
+                        
+                        case 0xE: 
+                            Chip8::switch_lores();
+                            break;
+                        
+                        case 0xF: 
+                            Chip8::switch_hires();
+                            break; 
+                        
+                        default:
+                            std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
+                    }
+                    break;
+                }
 
                 default:
-                    std::cerr << "Invalid opcode" << std::endl;
+                    std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
             }
             break;
         }
@@ -523,7 +565,7 @@ void Chip8::decode(uint16_t instruction) {
                     break;
 
                 default:
-                    std::cerr << "Invalid opcode" << std::endl;
+                    std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
             }
             break;
         }
@@ -563,7 +605,11 @@ void Chip8::decode(uint16_t instruction) {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             uint8_t y_reg = (instruction >> 4) & 0xF;
             uint8_t height = instruction & 0xF;
-            Chip8::display_8(x_reg, y_reg, height);
+            if (height == 0x0 && mode != CHIP8){
+                Chip8::display_16(x_reg, y_reg);
+            } else {
+                Chip8::display_8(x_reg, y_reg, height);
+            }
             break;
         }
 
@@ -579,7 +625,7 @@ void Chip8::decode(uint16_t instruction) {
                     break;
 
                 default:
-                    std::cerr << "Invalid opcode" << std::endl;
+                    std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
             }
             break;
         }
@@ -622,9 +668,21 @@ void Chip8::decode(uint16_t instruction) {
                 case 0x65:
                     Chip8::read_mem_reg(x_reg);
                     break;
+                
+                case 0x30:
+                    Chip8::set_index_font_big(x_reg);
+                    break;
+                
+                case 0x75:
+                    Chip8::write_flags_storage(x_reg);
+                    break;
+                
+                case 0x85:
+                    Chip8::read_flags_storage(x_reg);
+                    break;
 
                 default:
-                    std::cerr << "Invalid opcode" << std::endl;
+                    std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
             }
             break;
         }
@@ -685,19 +743,25 @@ void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) { registers[x_reg] = re
 //(8XY1) set VX to or of value of VX and VY
 void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] |= registers[y_reg];
-    registers[0xF] = 0;
+    if (mode != SCHIP1_1){
+        registers[0xF] = 0;
+    }
 }
 
 //(8XY2) set VX to and of value of VX and VY
 void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] &= registers[y_reg];
-    registers[0xF] = 0;
+    if (mode != SCHIP1_1){
+        registers[0xF] = 0;
+    }
 }
 
 //(8XY3) set VX to xor of value of VX and VY
 void Chip8::set_reg_xor(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] ^= registers[y_reg];
-    registers[0xF] = 0;
+    if (mode != SCHIP1_1){
+        registers[0xF] = 0;
+    }
 }
 
 // 8XY4 set VX to sum of value of VX and VY and set VF to 1 if overflow, 0 else
@@ -725,7 +789,9 @@ void Chip8::set_reg_sub_Y(uint8_t x_reg, uint8_t y_reg) {
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_right(uint8_t x_reg, uint8_t y_reg) {
-    registers[x_reg] = registers[y_reg];
+    if (mode != SCHIP1_1){
+        registers[x_reg] = registers[y_reg];
+    }
     uint8_t out = registers[x_reg] & 1;
     registers[x_reg] >>= 1;
     registers[0xF] = out;
@@ -744,7 +810,9 @@ void Chip8::set_reg_sub_X(uint8_t x_reg, uint8_t y_reg) {
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
-    registers[x_reg] = registers[y_reg];
+    if (mode != SCHIP1_1){
+        registers[x_reg] = registers[y_reg];
+    }
     uint8_t out = (registers[x_reg] >> 7) & 1;
     registers[x_reg] <<= 1;
     registers[0xF] = out;
@@ -903,11 +971,11 @@ void Chip8::write_reg_mem(uint8_t x_reg) {
     // modern behavior doesn't
     uint16_t addr = I;
     uint16_t* addr_ptr = &addr;
-    if (mode == 0) {
+    if (mode == CHIP8) {
         addr_ptr = &I;
     }
     for (uint8_t reg = 0; reg <= x_reg; reg++) {
-        memory[I] = registers[reg];
+        memory[*addr_ptr] = registers[reg];
         *addr_ptr += 1;
     }
 }
@@ -919,11 +987,11 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
     // modern behavior doesn't
     uint16_t addr = I;
     uint16_t* addr_ptr = &addr;
-    if (mode == 0) {
+    if (mode == CHIP8) {
         addr_ptr = &I;
     }
     for (uint8_t reg = 0; reg <= x_reg; reg++) {
-        registers[reg] = memory[I];
+        registers[reg] = memory[*addr_ptr];
         *addr_ptr += 1;
     }
 }
@@ -932,10 +1000,6 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
 
 //(00CN) scroll screen down by N pixels
 void Chip8::scroll_down_n(uint8_t val) {
-    // SCHIP Quirk: lores scrolls half
-    if (lores) {
-        val /= 2;
-    }
     // start from bottom and replace with n heigher if in bounds else set to 0
     for (int row = HEIGHT - 1; row >= 0; row--) {
         for (int col = WIDTH - 1; col >= 0; col--) {
@@ -953,9 +1017,6 @@ void Chip8::scroll_down_n(uint8_t val) {
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_right_four() {
     uint8_t val = 4;
-    if (lores) {
-        val /= 2;
-    }
 
     // traverse right to left top to down
     for (int row = 0; row < HEIGHT; row++) {
@@ -974,9 +1035,6 @@ void Chip8::scroll_right_four() {
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_Left_four() {
     uint8_t val = 4;
-    if (lores) {
-        val /= 2;
-    }
 
     // traverse left to right top to down
     for (int row = 0; row < HEIGHT; row++) {
@@ -1004,7 +1062,7 @@ void Chip8::switch_lores() {
     lores = true;
 }
 
-//(00FE) switch to hires (128x64) mode
+//(00FF) switch to hires (128x64) mode
 void Chip8::switch_hires() {
     // SCHIP Quirk: original didnt clear screen
     if (mode != SCHIP1_1) {
@@ -1065,7 +1123,6 @@ void Chip8::display_16(uint8_t x_reg, uint8_t y_reg) {
         }
         sprite_index += 2;
     }
-    draw = true;
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED, GL_UNSIGNED_BYTE, screen);
 }
 

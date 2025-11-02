@@ -45,7 +45,7 @@ class Chip8 {
     uint16_t fetch();
     void decode(uint16_t instruction);
 
-    // chip8 opcodes
+    //[chip8] opcodes
     void clear();                                        // 00E0 Clear Screen
     void return_subroutine();                            // 00EE Return from subroutine
     void jump(uint16_t addr);                            // 1NNN Jump
@@ -106,17 +106,17 @@ class Chip8 {
     void read_mem_reg(uint8_t x_reg);          // FX65 read contents of memory at I into
                                                // V0 to VX and I incremented by X+1
 
-    // schip8 opcodes (1.1)
+    //[schip8] opcodes (1.1)
     void scroll_down_n(uint8_t val);  // 00CN scroll screen down by N pixels
                                       // (SCHIP Quirk: lores scrolls half)
-    void scroll_right_four();         // 00FB scroll screen right by four pixels  (SCHIP
-                                      // Quirk: lores scrolls half)
-    void scroll_Left_four();          // 00FC scroll screen left by four pixels (SCHIP
-                                      // Quirk: lores scrolls half)
+    void scroll_right_four();         // 00FB scroll screen right by four pixels
+                                      // (SCHIP Quirk: lores scrolls half)
+    void scroll_Left_four();          // 00FC scroll screen left by four pixels 
+                                      // (SCHIP Quirk: lores scrolls half)
     void exit();                      // 00FD exit interpreter
     void switch_lores();              // 00FE switch to lores (64x32) mode (SCHIP Quirk:
                                       // original didnt clear screen)(but I will MODERN)
-    void switch_hires();              // 00FE switch to hires (128x64) mode (SCHIP Quirk:
+    void switch_hires();              // 00FF switch to hires (128x64) mode (SCHIP Quirk:
                                       // original didnt clear screen)(but I will MODERN)
     void jump_plus_reg(uint16_t addr,
                        uint8_t x_reg);  // BXNN jump to XNN + V[X] (Note: this replaces BNNN
