@@ -9,7 +9,7 @@
 #include <thread>
 
 int main() {
-  Chip8 chip8 = Chip8(SCHIP1_1, 15);
+  Chip8 chip8 = Chip8(SCHIP_MODERN , 30);
   if (chip8.initDisplay()) {
     std::cout << "Error intializing display..." << std::endl;
     return 1;

@@ -743,7 +743,7 @@ void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) { registers[x_reg] = re
 //(8XY1) set VX to or of value of VX and VY
 void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] |= registers[y_reg];
-    if (mode != SCHIP1_1){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
         registers[0xF] = 0;
     }
 }
@@ -751,7 +751,7 @@ void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
 //(8XY2) set VX to and of value of VX and VY
 void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] &= registers[y_reg];
-    if (mode != SCHIP1_1){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
         registers[0xF] = 0;
     }
 }
@@ -759,7 +759,7 @@ void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
 //(8XY3) set VX to xor of value of VX and VY
 void Chip8::set_reg_xor(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] ^= registers[y_reg];
-    if (mode != SCHIP1_1){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
         registers[0xF] = 0;
     }
 }
@@ -789,7 +789,7 @@ void Chip8::set_reg_sub_Y(uint8_t x_reg, uint8_t y_reg) {
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_right(uint8_t x_reg, uint8_t y_reg) {
-    if (mode != SCHIP1_1){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = registers[x_reg] & 1;
@@ -810,7 +810,7 @@ void Chip8::set_reg_sub_X(uint8_t x_reg, uint8_t y_reg) {
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
-    if (mode != SCHIP1_1){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = (registers[x_reg] >> 7) & 1;
@@ -904,7 +904,9 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
         }
         sprite_index++;
     }
-    draw = true;
+    if (mode != SCHIP_MODERN) {
+        draw = true;
+    }
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED, GL_UNSIGNED_BYTE, screen);
 }
 
@@ -1001,6 +1003,9 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
 //(00CN) scroll screen down by N pixels
 void Chip8::scroll_down_n(uint8_t val) {
     // start from bottom and replace with n heigher if in bounds else set to 0
+    if (lores && mode == SCHIP_MODERN){
+        val *= 2;
+    }
     for (int row = HEIGHT - 1; row >= 0; row--) {
         for (int col = WIDTH - 1; col >= 0; col--) {
             int index = (row * WIDTH) + col;
@@ -1017,7 +1022,9 @@ void Chip8::scroll_down_n(uint8_t val) {
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_right_four() {
     uint8_t val = 4;
-
+    if (lores && mode == SCHIP_MODERN){
+        val *= 2;
+    }
     // traverse right to left top to down
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = WIDTH - 1; col >= 0; col--) {
@@ -1035,7 +1042,9 @@ void Chip8::scroll_right_four() {
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_Left_four() {
     uint8_t val = 4;
-
+    if (lores && mode == SCHIP_MODERN){
+        val *= 2;
+    }
     // traverse left to right top to down
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = 0; col < WIDTH; col++) {

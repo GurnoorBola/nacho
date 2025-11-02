@@ -34,6 +34,8 @@ class Chip8 {
     uint8_t pressed = 0xFF;
     bool waiting = false;
 
+    //TODO quirks struct for enabling certain quirks
+
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
     // stack operations
