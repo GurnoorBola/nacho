@@ -3,8 +3,11 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <chrono>
 #include <cstring>
 #include <fstream>
+#include <mutex>
+#include <thread>
 
 uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -81,6 +84,11 @@ uint16_t Chip8::peek() {
 }
 
 /*-----------------[IO Functions]-----------------*/
+// TODO look at filename and determine quirks using game database
+int Chip8::setQuirks(std::string filename) {
+    return 0;
+}
+
 // load program into memory starting from 0x200 (512)
 int Chip8::loadProgram(std::string filename) {
     std::ifstream program("games/" + filename, std::ios::binary);
@@ -116,6 +124,7 @@ void Chip8::key_callback(GLFWwindow* window, int key, int scancode, int action, 
         return;
     }
     Chip8* chip8 = static_cast<Chip8*>(glfwGetWindowUserPointer(window));
+    std::lock_guard<std::mutex> lock(chip8->mtx);
     switch (action) {
         case GLFW_PRESS:
             switch (key) {
@@ -360,32 +369,75 @@ int Chip8::initDisplay() {
 }
 
 void Chip8::emulate_cycle() {
+    uint16_t instruction = Chip8::fetch();
+    Chip8::decode(instruction);
+}
+
+void Chip8::emulate_loop() {
+    while (1) {
+        for (int i = 0; i < speed; i++) {
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                if (stop) {
+                    break;
+                }
+            }
+            if (stop || draw) {
+                draw = false;
+                break;
+            }
+            emulate_cycle();
+        }
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            if (stop) {
+                break;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        decrementTimers();
+    }
+}
+
+void Chip8::render_loop() {
     // ImGui_ImplOpenGL3_NewFrame();
     // ImGui_ImplGlfw_NewFrame();
     // ImGui::NewFrame();
     // ImGui::ShowDemoWindow();
 
-    uint16_t instruction = Chip8::fetch();
-    Chip8::decode(instruction);
+    while (!glfwWindowShouldClose(window)) {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            if (stop) {
+                break;
+            }
+            if (screen_update) {
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED, GL_UNSIGNED_BYTE, screen);
+                screen_update = false;
+            }
 
-    glClear(GL_COLOR_BUFFER_BIT);
+            // TODO check timers and play sound if sound timer > 0
+        }
 
-    shader.use();
+        glClear(GL_COLOR_BUFFER_BIT);
 
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        shader.use();
 
-    glBindVertexArray(0);
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    // ImGui::Render();
-    // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        glBindVertexArray(0);
 
-    glfwSwapBuffers(window);
-    glfwPollEvents();
-    return;
+        // ImGui::Render();
+        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
 }
 
 void Chip8::decrementTimers() {
+    std::lock_guard<std::mutex> lock(mtx);
     if (delay) delay -= 1;
     if (sound) sound -= 1;
 }
@@ -422,11 +474,11 @@ void Chip8::decode(uint16_t instruction) {
             switch ((instruction >> 4) & 0xF) {
                 case 0xE: {
                     switch (instruction & 0xF) {
-                        case 0x0: 
+                        case 0x0:
                             Chip8::clear();
                             break;
-                        
-                        case 0xE: 
+
+                        case 0xE:
                             Chip8::return_subroutine();
                             break;
 
@@ -435,7 +487,7 @@ void Chip8::decode(uint16_t instruction) {
                     }
                     break;
                 }
-                
+
                 case 0xC: {
                     uint8_t val = instruction & 0xF;
                     Chip8::scroll_down_n(val);
@@ -443,27 +495,27 @@ void Chip8::decode(uint16_t instruction) {
                 }
 
                 case 0xF: {
-                    switch (instruction & 0xF){
-                        case 0xB: 
+                    switch (instruction & 0xF) {
+                        case 0xB:
                             Chip8::scroll_right_four();
                             break;
-                         
-                        case 0xC: 
+
+                        case 0xC:
                             Chip8::scroll_Left_four();
                             break;
-                        
-                        case 0xD: 
+
+                        case 0xD:
                             Chip8::exit();
                             break;
-                        
-                        case 0xE: 
+
+                        case 0xE:
                             Chip8::switch_lores();
                             break;
-                        
-                        case 0xF: 
+
+                        case 0xF:
                             Chip8::switch_hires();
-                            break; 
-                        
+                            break;
+
                         default:
                             std::cerr << "Invalid opcode " << std::hex << instruction << std::endl;
                     }
@@ -605,7 +657,7 @@ void Chip8::decode(uint16_t instruction) {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             uint8_t y_reg = (instruction >> 4) & 0xF;
             uint8_t height = instruction & 0xF;
-            if (height == 0x0 && mode != CHIP8){
+            if (height == 0x0 && mode != CHIP8) {
                 Chip8::display_16(x_reg, y_reg);
             } else {
                 Chip8::display_8(x_reg, y_reg, height);
@@ -668,15 +720,15 @@ void Chip8::decode(uint16_t instruction) {
                 case 0x65:
                     Chip8::read_mem_reg(x_reg);
                     break;
-                
+
                 case 0x30:
                     Chip8::set_index_font_big(x_reg);
                     break;
-                
+
                 case 0x75:
                     Chip8::write_flags_storage(x_reg);
                     break;
-                
+
                 case 0x85:
                     Chip8::read_flags_storage(x_reg);
                     break;
@@ -699,10 +751,14 @@ void Chip8::clear() {
 }
 
 //(00EE) return from subroutine
-void Chip8::return_subroutine() { PC = Chip8::pop(); }
+void Chip8::return_subroutine() {
+    PC = Chip8::pop();
+}
 
 //(1NNN) jump to adress NNN
-void Chip8::jump(uint16_t addr) { PC = addr; }
+void Chip8::jump(uint16_t addr) {
+    PC = addr;
+}
 
 //(2NNN) start subroutine at NNN
 void Chip8::start_subroutine(uint16_t addr) {
@@ -732,18 +788,24 @@ void Chip8::skip_reg_equals(uint8_t x_reg, uint8_t y_reg) {
 }
 
 //(6XNN) set VX to NN
-void Chip8::set(uint8_t x_reg, uint8_t val) { registers[x_reg] = val; }
+void Chip8::set(uint8_t x_reg, uint8_t val) {
+    registers[x_reg] = val;
+}
 
 //(7XNN) add NN to VX
-void Chip8::add(uint8_t x_reg, uint8_t val) { registers[x_reg] += val; }
+void Chip8::add(uint8_t x_reg, uint8_t val) {
+    registers[x_reg] += val;
+}
 
 //(8XY0) set VX to value of VY
-void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) { registers[x_reg] = registers[y_reg]; }
+void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) {
+    registers[x_reg] = registers[y_reg];
+}
 
 //(8XY1) set VX to or of value of VX and VY
 void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] |= registers[y_reg];
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
         registers[0xF] = 0;
     }
 }
@@ -751,7 +813,7 @@ void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
 //(8XY2) set VX to and of value of VX and VY
 void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] &= registers[y_reg];
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
         registers[0xF] = 0;
     }
 }
@@ -759,7 +821,7 @@ void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
 //(8XY3) set VX to xor of value of VX and VY
 void Chip8::set_reg_xor(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] ^= registers[y_reg];
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
         registers[0xF] = 0;
     }
 }
@@ -789,7 +851,7 @@ void Chip8::set_reg_sub_Y(uint8_t x_reg, uint8_t y_reg) {
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_right(uint8_t x_reg, uint8_t y_reg) {
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = registers[x_reg] & 1;
@@ -810,7 +872,7 @@ void Chip8::set_reg_sub_X(uint8_t x_reg, uint8_t y_reg) {
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN){
+    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = (registers[x_reg] >> 7) & 1;
@@ -826,10 +888,14 @@ void Chip8::skip_reg_not_equals(uint8_t x_reg, uint8_t y_reg) {
 }
 
 //(ANNN) set index to NNN
-void Chip8::set_index(uint16_t addr) { I = addr; }
+void Chip8::set_index(uint16_t addr) {
+    I = addr;
+}
 
 //(BNNN) jump to NNN + V0
-void Chip8::jump_plus(uint16_t addr) { PC = addr + registers[0x0]; }
+void Chip8::jump_plus(uint16_t addr) {
+    PC = addr + registers[0x0];
+}
 
 //(CXNN) set VX to random byte (bitwise AND) NN
 void Chip8::set_reg_rand(uint8_t x_reg, uint8_t val) {
@@ -907,11 +973,14 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
     if (mode != SCHIP_MODERN) {
         draw = true;
     }
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED, GL_UNSIGNED_BYTE, screen);
+
+    std::lock_guard<std::mutex> lock(mtx);
+    screen_update = true;
 }
 
 //(EX9E) skip if key represented by VX's lower nibble is pressed
 void Chip8::skip_key_pressed(uint8_t x_reg) {
+    std::lock_guard<std::mutex> lock(mtx);
     uint8_t key = registers[x_reg] & 0xF;
     if ((keys >> key) & 1) {
         PC += 2;
@@ -920,6 +989,7 @@ void Chip8::skip_key_pressed(uint8_t x_reg) {
 
 //(EXA1) skip if key represented by VX's lower nibble is not pressed
 void Chip8::skip_key_not_pressed(uint8_t x_reg) {
+    std::lock_guard<std::mutex> lock(mtx);
     uint8_t key = registers[x_reg] & 0xF;
     if (!((keys >> key) & 1)) {
         PC += 2;
@@ -927,7 +997,9 @@ void Chip8::skip_key_not_pressed(uint8_t x_reg) {
 }
 
 //(FX07) set VX to value of delay timer
-void Chip8::set_reg_delay(uint8_t x_reg) { registers[x_reg] = delay; }
+void Chip8::set_reg_delay(uint8_t x_reg) {
+    registers[x_reg] = delay;
+}
 
 //(FX0A) wait for key press and release and set VX to that key
 void Chip8::set_reg_keypress(uint8_t x_reg) {
@@ -942,13 +1014,20 @@ void Chip8::set_reg_keypress(uint8_t x_reg) {
 }
 
 //(FX15) set delay timer to VX
-void Chip8::set_delay(uint8_t x_reg) { delay = registers[x_reg]; }
+void Chip8::set_delay(uint8_t x_reg) {
+    delay = registers[x_reg];
+}
 
 //(FX18) set sound timer to VX
-void Chip8::set_sound(uint8_t x_reg) { sound = registers[x_reg]; }
+void Chip8::set_sound(uint8_t x_reg) {
+    std::lock_guard<std::mutex> lock(mtx);
+    sound = registers[x_reg];
+}
 
 //(FX1E) add VX to I
-void Chip8::add_index(uint8_t x_reg) { I += registers[x_reg]; }
+void Chip8::add_index(uint8_t x_reg) {
+    I += registers[x_reg];
+}
 
 //(FX29) set I to memory location of character represented by lower nibble of VX
 void Chip8::set_index_font(uint8_t x_reg) {
@@ -1003,7 +1082,7 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
 //(00CN) scroll screen down by N pixels
 void Chip8::scroll_down_n(uint8_t val) {
     // start from bottom and replace with n heigher if in bounds else set to 0
-    if (lores && mode == SCHIP_MODERN){
+    if (lores && mode == SCHIP_MODERN) {
         val *= 2;
     }
     for (int row = HEIGHT - 1; row >= 0; row--) {
@@ -1022,7 +1101,7 @@ void Chip8::scroll_down_n(uint8_t val) {
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_right_four() {
     uint8_t val = 4;
-    if (lores && mode == SCHIP_MODERN){
+    if (lores && mode == SCHIP_MODERN) {
         val *= 2;
     }
     // traverse right to left top to down
@@ -1042,7 +1121,7 @@ void Chip8::scroll_right_four() {
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_Left_four() {
     uint8_t val = 4;
-    if (lores && mode == SCHIP_MODERN){
+    if (lores && mode == SCHIP_MODERN) {
         val *= 2;
     }
     // traverse left to right top to down
@@ -1059,8 +1138,11 @@ void Chip8::scroll_Left_four() {
     }
 }
 
+// TODO make this function return to start screen not kill render loop
 //(00FD) exit interpreter
-void Chip8::exit() { terminate(); }
+void Chip8::exit() {
+    terminate();
+}
 
 //(00FE) switch to lores (64x32) mode
 void Chip8::switch_lores() {
@@ -1132,7 +1214,8 @@ void Chip8::display_16(uint8_t x_reg, uint8_t y_reg) {
         }
         sprite_index += 2;
     }
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED, GL_UNSIGNED_BYTE, screen);
+    std::lock_guard<std::mutex> lock(mtx);
+    screen_update = true;
 }
 
 //(FX30) set I to big font (10 line) for digit in lowest nibble of V[X]

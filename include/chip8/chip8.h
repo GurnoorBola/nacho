@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <mutex>
 
 #define MAX_MEM 4096
 #define MAX_STACK 16
@@ -34,7 +35,9 @@ class Chip8 {
     uint8_t pressed = 0xFF;
     bool waiting = false;
 
-    //TODO quirks struct for enabling certain quirks
+    std::mutex mtx;
+
+    // TODO quirks struct for enabling certain quirks
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
@@ -113,7 +116,7 @@ class Chip8 {
                                       // (SCHIP Quirk: lores scrolls half)
     void scroll_right_four();         // 00FB scroll screen right by four pixels
                                       // (SCHIP Quirk: lores scrolls half)
-    void scroll_Left_four();          // 00FC scroll screen left by four pixels 
+    void scroll_Left_four();          // 00FC scroll screen left by four pixels
                                       // (SCHIP Quirk: lores scrolls half)
     void exit();                      // 00FD exit interpreter
     void switch_lores();              // 00FE switch to lores (64x32) mode (SCHIP Quirk:
@@ -156,13 +159,21 @@ class Chip8 {
     bool stop = false;
     // bool to notify if we drew
     bool draw = false;
+    // bool if screen updated
+    bool screen_update = false;
 
     int initDisplay();
 
     // IO functionality
+    int setQuirks(std::string filename);
+
     int loadProgram(std::string filename);
 
     void emulate_cycle();
+
+    void emulate_loop();
+
+    void render_loop();
 
     void decrementTimers();
 
