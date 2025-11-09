@@ -8,6 +8,11 @@
 #include <mutex>
 #include <miniaudio.h>
 
+#define DEVICE_FORMAT       ma_format_f32
+#define DEVICE_CHANNELS     2
+#define DEVICE_SAMPLE_RATE  48000
+
+#define MAX_PROG_SIZE 4000
 #define MAX_MEM 4096
 #define MAX_STACK 16
 #define WIDTH 128

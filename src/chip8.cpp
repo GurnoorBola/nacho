@@ -10,9 +10,6 @@
 #include <thread>
 #include <cassert>
 
-#define DEVICE_FORMAT       ma_format_f32
-#define DEVICE_CHANNELS     2
-#define DEVICE_SAMPLE_RATE  48000
 
 uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -104,6 +101,11 @@ int Chip8::loadProgram(std::string filename) {
     program.seekg(0, std::ios::end);
     std::streampos fileSize = program.tellg();
     program.seekg(0, std::ios::beg);
+
+    if (fileSize > MAX_PROG_SIZE){
+        std::cerr << "File size exceeds max program size" << std::endl;
+        return 2;
+    }
 
     program.read(reinterpret_cast<char*>(memory + 0x200), fileSize);
     for (int i = 512; i < 512 + (int)fileSize; i++) {
@@ -455,7 +457,6 @@ void Chip8::render_loop() {
                 screen_update = false;
             }
 
-            // TODO check timers and play sound if sound timer > 0
             if (!beep && sound > 0){
                 beep = true;
                 if (ma_device_start(&device) != MA_SUCCESS) {
