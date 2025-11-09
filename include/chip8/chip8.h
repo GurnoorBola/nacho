@@ -6,6 +6,7 @@
 #include <cmath>
 #include <iostream>
 #include <mutex>
+#include <miniaudio.h>
 
 #define MAX_MEM 4096
 #define MAX_STACK 16
@@ -37,9 +38,14 @@ class Chip8 {
 
     std::mutex mtx;
 
+    ma_device device;
+    ma_waveform squareWave;
+    bool beep = false; 
+
     // TODO quirks struct for enabling certain quirks
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
 
     // stack operations
     void push(uint16_t x);
@@ -49,6 +55,7 @@ class Chip8 {
     // CHIP-8 Functionality
     uint16_t fetch();
     void decode(uint16_t instruction);
+    void emulate_cycle();
 
     //[chip8] opcodes
     void clear();                                        // 00E0 Clear Screen
@@ -146,6 +153,8 @@ class Chip8 {
 
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
+    static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+
    public:
     Chip8(int mode, int speed);
 
@@ -164,12 +173,12 @@ class Chip8 {
 
     int initDisplay();
 
+    int initAudio();
+
     // IO functionality
     int setQuirks(std::string filename);
 
     int loadProgram(std::string filename);
-
-    void emulate_cycle();
 
     void emulate_loop();
 

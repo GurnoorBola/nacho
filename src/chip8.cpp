@@ -1,13 +1,18 @@
 #include <chip8/chip8.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
+// #include <imgui.h>
+// #include <imgui_impl_glfw.h>
+// #include <imgui_impl_opengl3.h>
 
 #include <chrono>
 #include <cstring>
 #include <fstream>
 #include <mutex>
 #include <thread>
+#include <cassert>
+
+#define DEVICE_FORMAT       ma_format_f32
+#define DEVICE_CHANNELS     2
+#define DEVICE_SAMPLE_RATE  48000
 
 uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -284,6 +289,19 @@ void Chip8::key_callback(GLFWwindow* window, int key, int scancode, int action, 
     }
 }
 
+void Chip8::data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+    ma_waveform* pSquareWave;
+
+    assert(pDevice->playback.channels == DEVICE_CHANNELS);
+
+    pSquareWave = (ma_waveform*)pDevice->pUserData;
+    assert(pSquareWave != NULL);
+
+    ma_waveform_read_pcm_frames(pSquareWave, pOutput, frameCount, NULL);
+
+    (void)pInput;
+}
+
 int Chip8::initDisplay() {
     glfwInit();
     glfwWindowHint(GLFW_RESIZABLE, 0);
@@ -305,14 +323,14 @@ int Chip8::initDisplay() {
         return 1;
     }
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    // IMGUI_CHECKVERSION();
+    // ImGui::CreateContext();
+    // ImGuiIO& io = ImGui::GetIO();
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init();
+    // ImGui_ImplGlfw_InitForOpenGL(window, true);
+    // ImGui_ImplOpenGL3_Init();
 
     glViewport(0, 0, WIDTH * 10, HEIGHT * 10);
     glfwSetFramebufferSizeCallback(window, Chip8::framebuffer_size_callback);
@@ -368,6 +386,27 @@ int Chip8::initDisplay() {
     return 0;
 }
 
+int Chip8::initAudio(){
+    ma_device_config deviceConfig;
+    ma_waveform_config squareWaveConfig;
+
+    deviceConfig = ma_device_config_init(ma_device_type_playback);
+    deviceConfig.playback.format   = DEVICE_FORMAT;
+    deviceConfig.playback.channels = DEVICE_CHANNELS;
+    deviceConfig.sampleRate        = DEVICE_SAMPLE_RATE;
+    deviceConfig.dataCallback      = data_callback;
+    deviceConfig.pUserData         = &squareWave;
+
+    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
+        printf("Failed to open playback device.\n");
+        return 1;
+    }
+
+    squareWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate, ma_waveform_type_square, 0.2, 440);
+    ma_waveform_init(&squareWaveConfig, &squareWave);
+    return 0;
+}
+
 void Chip8::emulate_cycle() {
     uint16_t instruction = Chip8::fetch();
     Chip8::decode(instruction);
@@ -417,6 +456,22 @@ void Chip8::render_loop() {
             }
 
             // TODO check timers and play sound if sound timer > 0
+            if (!beep && sound > 0){
+                beep = true;
+                if (ma_device_start(&device) != MA_SUCCESS) {
+                    std::cerr << "Failed to start playback device." << std::endl;
+                    ma_device_uninit(&device);
+                    break;
+                }
+            }
+            if (beep && sound == 0){
+                beep = false;
+                if (ma_device_stop(&device) != MA_SUCCESS) {
+                    std::cerr << "Failed to stop playback device." << std::endl;
+                    ma_device_uninit(&device);
+                    break;
+                }
+            }
         }
 
         glClear(GL_COLOR_BUFFER_BIT);
@@ -445,6 +500,8 @@ void Chip8::decrementTimers() {
 void Chip8::terminate() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &EBO);
+
+    ma_device_uninit(&device);
 
     // ImGui_ImplOpenGL3_Shutdown();
     // ImGui_ImplGlfw_Shutdown();
