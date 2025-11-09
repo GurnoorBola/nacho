@@ -3,13 +3,12 @@
 // #include <imgui_impl_glfw.h>
 // #include <imgui_impl_opengl3.h>
 
+#include <cassert>
 #include <chrono>
 #include <cstring>
 #include <fstream>
 #include <mutex>
 #include <thread>
-#include <cassert>
-
 
 uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -102,7 +101,7 @@ int Chip8::loadProgram(std::string filename) {
     std::streampos fileSize = program.tellg();
     program.seekg(0, std::ios::beg);
 
-    if (fileSize > MAX_PROG_SIZE){
+    if (fileSize > MAX_PROG_SIZE) {
         std::cerr << "File size exceeds max program size" << std::endl;
         return 2;
     }
@@ -388,23 +387,24 @@ int Chip8::initDisplay() {
     return 0;
 }
 
-int Chip8::initAudio(){
+int Chip8::initAudio() {
     ma_device_config deviceConfig;
     ma_waveform_config squareWaveConfig;
 
     deviceConfig = ma_device_config_init(ma_device_type_playback);
-    deviceConfig.playback.format   = DEVICE_FORMAT;
+    deviceConfig.playback.format = DEVICE_FORMAT;
     deviceConfig.playback.channels = DEVICE_CHANNELS;
-    deviceConfig.sampleRate        = DEVICE_SAMPLE_RATE;
-    deviceConfig.dataCallback      = data_callback;
-    deviceConfig.pUserData         = &squareWave;
+    deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
+    deviceConfig.dataCallback = data_callback;
+    deviceConfig.pUserData = &squareWave;
 
     if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
         printf("Failed to open playback device.\n");
         return 1;
     }
 
-    squareWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate, ma_waveform_type_square, 0.2, 440);
+    squareWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate,
+                                               ma_waveform_type_square, 0.2, 440);
     ma_waveform_init(&squareWaveConfig, &squareWave);
     return 0;
 }
@@ -457,7 +457,7 @@ void Chip8::render_loop() {
                 screen_update = false;
             }
 
-            if (!beep && sound > 0){
+            if (!beep && sound > 0) {
                 beep = true;
                 if (ma_device_start(&device) != MA_SUCCESS) {
                     std::cerr << "Failed to start playback device." << std::endl;
@@ -465,7 +465,7 @@ void Chip8::render_loop() {
                     break;
                 }
             }
-            if (beep && sound == 0){
+            if (beep && sound == 0) {
                 beep = false;
                 if (ma_device_stop(&device) != MA_SUCCESS) {
                     std::cerr << "Failed to stop playback device." << std::endl;
