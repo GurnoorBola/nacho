@@ -8,8 +8,8 @@
 #include <thread>
 
 int main() {
-    Chip8 chip8 = Chip8(SCHIP_MODERN, 20);
-    if (chip8.initDisplay()) {
+    Chip8 chip8 = Chip8(20);
+    if (chip8.init_display()) {
         std::cout << "Error intializing display..." << std::endl;
         return 1;
     }
@@ -23,7 +23,7 @@ int main() {
 
     // going to have main thread which is an uncapped infinite loop that simply draw
 
-    while (chip8.loadProgram("7-beep.ch8")) {
+    while (chip8.loadProgram("slipperyslope.ch8")) {
         std::cout << "Error loading file. Please make sure the file is in the "
                      "\"games/\" directory."
                   << std::endl;

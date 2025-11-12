@@ -7,6 +7,7 @@
 #include <iostream>
 #include <mutex>
 #include <miniaudio.h>
+#include <json.hpp>
 
 #define DEVICE_FORMAT       ma_format_f32
 #define DEVICE_CHANNELS     2
@@ -24,6 +25,61 @@
 #define XO_CHIP 3
 
 class Chip8 {
+   public:
+    Chip8(int speed);
+
+    // each bit maps to keypress
+    uint16_t keys = 0;
+
+    int speed;
+
+    struct Quirks{
+        bool shift = false;
+        bool memory_increment_by_X = false;
+        bool memory_leave_I_unchanged = false;
+        bool wrap = false;
+        bool jump = false;
+        bool vblank = false;
+        bool logic = false;
+        bool draw_zero = false;
+        bool half_scroll_lores = false;
+        bool clean_screen = false;
+        bool set_collisions = false;
+        bool lores_8x16 = false;
+    }; 
+
+    //TODO move this to a new UI subclass so database is loaded with the UI
+    //it is here temporarily
+    nlohmann::json sha1_hashes;
+    nlohmann::json programs;
+    nlohmann::json quirk_list;
+    nlohmann::json platforms;
+
+
+    // flag to stop emulation
+    bool stop = false;
+    // bool to notify if we drew
+    bool draw = false;
+    // bool if screen updated
+    bool screen_update = false;
+
+    int init_display();
+
+    int initAudio();
+
+    // IO functionality
+    int setQuirks(std::string filename);
+
+    int loadProgram(std::string filename);
+
+    void emulate_loop();
+
+    void render_loop();
+
+    void decrementTimers();
+
+    void terminate();
+
    private:
     uint8_t memory[MAX_MEM] = {};
     uint8_t screen[WIDTH * HEIGHT] = {};
@@ -41,6 +97,9 @@ class Chip8 {
     uint8_t pressed = 0xFF;
     bool waiting = false;
 
+
+    Quirks quirks;
+
     std::mutex mtx;
 
     ma_device device;
@@ -48,6 +107,7 @@ class Chip8 {
     bool beep = false; 
 
     // TODO quirks struct for enabling certain quirks
+    int set_quirks(std::string hash);
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
@@ -159,37 +219,4 @@ class Chip8 {
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
     static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
-
-   public:
-    Chip8(int mode, int speed);
-
-    // each bit maps to keypress
-    uint16_t keys = 0;
-
-    int mode;
-    int speed;
-
-    // flag to stop emulation
-    bool stop = false;
-    // bool to notify if we drew
-    bool draw = false;
-    // bool if screen updated
-    bool screen_update = false;
-
-    int initDisplay();
-
-    int initAudio();
-
-    // IO functionality
-    int setQuirks(std::string filename);
-
-    int loadProgram(std::string filename);
-
-    void emulate_loop();
-
-    void render_loop();
-
-    void decrementTimers();
-
-    void terminate();
 };

@@ -2,15 +2,20 @@
 // #include <imgui.h>
 // #include <imgui_impl_glfw.h>
 // #include <imgui_impl_opengl3.h>
+#include <json.hpp>
 
+#include <openssl/sha.h>
 #include <cassert>
 #include <chrono>
 #include <cstring>
 #include <fstream>
 #include <mutex>
 #include <thread>
+#include <unordered_set>
 
-uint8_t fonts[] = {
+using json = nlohmann::json;
+
+const uint8_t fonts[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
     0x20, 0x60, 0x20, 0x20, 0x70,  // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
@@ -29,7 +34,7 @@ uint8_t fonts[] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80   // F
 };
 
-uint8_t big_fonts[] = {
+const uint8_t big_fonts[] = {
     0xff, 0xff, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xff, 0xff,  // 0
     0x18, 0x78, 0x78, 0x18, 0x18, 0x18, 0x18, 0x18, 0xff, 0xff,  // 1
     0xff, 0xff, 0x03, 0x03, 0xff, 0xff, 0xc0, 0xc0, 0xff, 0xff,  // 2
@@ -48,14 +53,27 @@ uint8_t big_fonts[] = {
     0xff, 0xff, 0xc0, 0xc0, 0xff, 0xff, 0xc0, 0xc0, 0xc0, 0xc0   // F
 };
 
+std::unordered_set<std::string> supported = {"originalChip8", "modernChip8", "superchip"};
+
 /*-----------------[Special Member Functions]-----------------*/
-Chip8::Chip8(int mode, int speed) {
+Chip8::Chip8(int speed) {
     // copy fonts to memory (0x050 - 0x09F)
     memcpy(&memory[0x50], fonts, sizeof(fonts));
     // copy big fonts to memory (0xA0 - 0x13F)
     memcpy(&memory[0xA0], big_fonts, sizeof(big_fonts));
 
-    Chip8::mode = mode;
+    //TODO move the below section to new UI subclass
+    //load database
+    std::fstream platform_f("database/platforms.json");
+    std::fstream programs_f("database/programs.json");
+    std::fstream quirks_f("database/quirks.json");
+    std::fstream sha1_hashes_f("database/sha1-hashes.json");
+
+    platforms = json::parse(platform_f);
+    programs = json::parse(programs_f);
+    quirk_list = json::parse(quirks_f);
+    sha1_hashes = json::parse(sha1_hashes_f);
+
     Chip8::speed = speed;
 };
 
@@ -86,11 +104,54 @@ uint16_t Chip8::peek() {
 
 /*-----------------[IO Functions]-----------------*/
 // TODO look at filename and determine quirks using game database
-int Chip8::setQuirks(std::string filename) {
+// if failure game not compatible with emu
+//called after loading program into memory
+
+//TODO rename to init db
+
+int Chip8::set_quirks(std::string hash) {
+    int index = sha1_hashes.value(hash, -1);
+    if (index == -1){
+        std::cout << "Game not found in database. Please select a system..." << std::endl;
+        return 0;
+    }
+    std::cout << "Game found at index " << index << std::endl;
+
+    json game = programs[index];
+    std::vector<std::string> platform_list = game["roms"][hash]["platforms"];
+    std::string platform_name = "";
+    for (std::string p : platform_list){
+        if (supported.find(p) != supported.end()){
+            platform_name = p;
+        }
+    }
+
+    if (platform_name.empty()){
+        std::cout << "Game: " << game["title"] << " is not spported yet :(" << std::endl;
+        return 0;
+    }
+
+    std::cout << "Platform " << platform_name << std::endl;
+
+    json platform_quirks = platforms[platform_name]["quirks"];
+    speed = platforms[platform_name]["defaultTickrate"];
+    quirks.shift = platform_quirks["shift"];
+    quirks.memory_increment_by_X = platform_quirks["memoryIncrementByX"];
+    quirks.memory_leave_I_unchanged = platform_quirks["memoryLeaveIUnchanged"];
+    quirks.wrap = platform_quirks["wrap"];
+    quirks.jump = platform_quirks["jump"];
+    quirks.vblank = platform_quirks["vblank"];
+    quirks.logic = platform_quirks["logic"];
+    quirks.draw_zero = platform_quirks["drawZero"];
+    quirks.half_scroll_lores = platform_quirks["halfScrollLores"];
+    quirks.clean_screen = platform_quirks["cleanScreen"];
+    quirks.set_collisions = platform_quirks["setCollisions"];
+    quirks.lores_8x16 = platform_quirks["lores8x16"];
     return 0;
 }
 
 // load program into memory starting from 0x200 (512)
+// TODO hash binary check for metadata in db and apply
 int Chip8::loadProgram(std::string filename) {
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
@@ -107,6 +168,23 @@ int Chip8::loadProgram(std::string filename) {
     }
 
     program.read(reinterpret_cast<char*>(memory + 0x200), fileSize);
+
+    //TODO move all this to UI class. UI class should be in charge of computing the hash and 
+    //should output quirks/config to initialize Chip8 emu with
+
+    //compute hash
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    SHA1((memory + 0x200), fileSize, hash);
+
+    //change to a string and search for it in database
+    std::ostringstream oss;
+    for (int i=0; i < SHA_DIGEST_LENGTH; i++){
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    std::cout << oss.str() << std::endl; 
+
+    set_quirks(oss.str());
+
     for (int i = 512; i < 512 + (int)fileSize; i++) {
         printf("%02x ", memory[i]);
         fflush(stdout);
@@ -303,7 +381,7 @@ void Chip8::data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
     (void)pInput;
 }
 
-int Chip8::initDisplay() {
+int Chip8::init_display() {
     glfwInit();
     glfwWindowHint(GLFW_RESIZABLE, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -695,7 +773,7 @@ void Chip8::decode(uint16_t instruction) {
 
         case 0xB: {
             uint16_t addr = instruction & 0xFFF;
-            if (mode == SCHIP1_1 || mode == SCHIP_MODERN) {
+            if (quirks.jump) {
                 uint8_t x_reg = (instruction >> 8) & 0xF;
                 Chip8::jump_plus_reg(addr, x_reg);
             } else {
@@ -715,7 +793,7 @@ void Chip8::decode(uint16_t instruction) {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             uint8_t y_reg = (instruction >> 4) & 0xF;
             uint8_t height = instruction & 0xF;
-            if (height == 0x0 && mode != CHIP8) {
+            if (height == 0x0 && !quirks.draw_zero) {
                 Chip8::display_16(x_reg, y_reg);
             } else {
                 Chip8::display_8(x_reg, y_reg, height);
@@ -863,7 +941,7 @@ void Chip8::set_reg_equals(uint8_t x_reg, uint8_t y_reg) {
 //(8XY1) set VX to or of value of VX and VY
 void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] |= registers[y_reg];
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
+    if (quirks.logic) {
         registers[0xF] = 0;
     }
 }
@@ -871,7 +949,7 @@ void Chip8::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
 //(8XY2) set VX to and of value of VX and VY
 void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] &= registers[y_reg];
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
+    if (quirks.logic) {
         registers[0xF] = 0;
     }
 }
@@ -879,7 +957,7 @@ void Chip8::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
 //(8XY3) set VX to xor of value of VX and VY
 void Chip8::set_reg_xor(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] ^= registers[y_reg];
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
+    if (quirks.logic) {
         registers[0xF] = 0;
     }
 }
@@ -909,7 +987,7 @@ void Chip8::set_reg_sub_Y(uint8_t x_reg, uint8_t y_reg) {
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_right(uint8_t x_reg, uint8_t y_reg) {
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
+    if (!quirks.shift) {
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = registers[x_reg] & 1;
@@ -930,7 +1008,7 @@ void Chip8::set_reg_sub_X(uint8_t x_reg, uint8_t y_reg) {
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
 // shifted out
 void Chip8::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
-    if (mode != SCHIP1_1 && mode != SCHIP_MODERN) {
+    if (!quirks.shift) {
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = (registers[x_reg] >> 7) & 1;
@@ -1028,7 +1106,7 @@ void Chip8::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
         }
         sprite_index++;
     }
-    if (mode != SCHIP_MODERN) {
+    if (quirks.vblank) {
         draw = true;
     }
 
@@ -1110,12 +1188,15 @@ void Chip8::write_reg_mem(uint8_t x_reg) {
     // modern behavior doesn't
     uint16_t addr = I;
     uint16_t* addr_ptr = &addr;
-    if (mode == CHIP8) {
+    if (!quirks.memory_leave_I_unchanged) {
         addr_ptr = &I;
     }
     for (uint8_t reg = 0; reg <= x_reg; reg++) {
         memory[*addr_ptr] = registers[reg];
         *addr_ptr += 1;
+    }
+    if (quirks.memory_increment_by_X) {
+        addr_ptr -= 1;
     }
 }
 
@@ -1126,12 +1207,15 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
     // modern behavior doesn't
     uint16_t addr = I;
     uint16_t* addr_ptr = &addr;
-    if (mode == CHIP8) {
+    if (!quirks.memory_leave_I_unchanged) {
         addr_ptr = &I;
     }
     for (uint8_t reg = 0; reg <= x_reg; reg++) {
         registers[reg] = memory[*addr_ptr];
         *addr_ptr += 1;
+    }
+    if (quirks.memory_increment_by_X) {
+        addr_ptr -= 1;
     }
 }
 
@@ -1140,7 +1224,7 @@ void Chip8::read_mem_reg(uint8_t x_reg) {
 //(00CN) scroll screen down by N pixels
 void Chip8::scroll_down_n(uint8_t val) {
     // start from bottom and replace with n heigher if in bounds else set to 0
-    if (lores && mode == SCHIP_MODERN) {
+    if (lores && !quirks.half_scroll_lores) {
         val *= 2;
     }
     for (int row = HEIGHT - 1; row >= 0; row--) {
@@ -1159,7 +1243,7 @@ void Chip8::scroll_down_n(uint8_t val) {
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_right_four() {
     uint8_t val = 4;
-    if (lores && mode == SCHIP_MODERN) {
+    if (lores && !quirks.half_scroll_lores) {
         val *= 2;
     }
     // traverse right to left top to down
@@ -1179,7 +1263,7 @@ void Chip8::scroll_right_four() {
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
 void Chip8::scroll_Left_four() {
     uint8_t val = 4;
-    if (lores && mode == SCHIP_MODERN) {
+    if (lores && !quirks.half_scroll_lores) {
         val *= 2;
     }
     // traverse left to right top to down
@@ -1205,7 +1289,7 @@ void Chip8::exit() {
 //(00FE) switch to lores (64x32) mode
 void Chip8::switch_lores() {
     // SCHIP Quirk: original didnt clear screen
-    if (mode != SCHIP1_1) {
+    if (quirks.clean_screen) {
         clear();
     }
     lores = true;
@@ -1214,7 +1298,7 @@ void Chip8::switch_lores() {
 //(00FF) switch to hires (128x64) mode
 void Chip8::switch_hires() {
     // SCHIP Quirk: original didnt clear screen
-    if (mode != SCHIP1_1) {
+    if (quirks.clean_screen) {
         clear();
     }
     lores = false;
@@ -1229,7 +1313,7 @@ void Chip8::jump_plus_reg(uint16_t addr, uint8_t x_reg) {
 
 //(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
 void Chip8::display_16(uint8_t x_reg, uint8_t y_reg) {
-    if (mode == SCHIP1_1 && lores) {
+    if (quirks.lores_8x16 && lores) {
         display_8(x_reg, y_reg, 0xF);
         return;
     }
