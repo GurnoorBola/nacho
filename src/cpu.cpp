@@ -1,11 +1,11 @@
 #include <cpu/cpu.h>
-#include <json.hpp>
-
 #include <openssl/sha.h>
+
 #include <cassert>
 #include <chrono>
 #include <cstring>
 #include <fstream>
+#include <json.hpp>
 #include <mutex>
 #include <thread>
 #include <unordered_set>
@@ -59,8 +59,8 @@ CPU::CPU(int speed) {
     // copy big fonts to memory (0xA0 - 0x13F)
     memcpy(&memory[0xA0], big_fonts, sizeof(big_fonts));
 
-    //TODO move the below section to new UI subclass
-    //load database
+    // TODO move the below section to new UI subclass
+    // load database
     std::fstream platform_f("database/platforms.json");
     std::fstream programs_f("database/programs.json");
     std::fstream quirks_f("database/quirks.json");
@@ -102,13 +102,13 @@ uint16_t CPU::peek() {
 /*-----------------[IO Functions]-----------------*/
 // TODO look at filename and determine quirks using game database
 // if failure game not compatible with emu
-//called after loading program into memory
+// called after loading program into memory
 
-//TODO rename to init db
+// TODO rename to init db
 
 int CPU::set_quirks(std::string hash) {
     int index = sha1_hashes.value(hash, -1);
-    if (index == -1){
+    if (index == -1) {
         std::cout << "Game not found in database. Please select a system..." << std::endl;
         return 0;
     }
@@ -117,13 +117,13 @@ int CPU::set_quirks(std::string hash) {
     json game = programs[index];
     std::vector<std::string> platform_list = game["roms"][hash]["platforms"];
     std::string platform_name = "";
-    for (std::string p : platform_list){
-        if (supported.find(p) != supported.end()){
+    for (std::string p : platform_list) {
+        if (supported.find(p) != supported.end()) {
             platform_name = p;
         }
     }
 
-    if (platform_name.empty()){
+    if (platform_name.empty()) {
         std::cout << "Game: " << game["title"] << " is not spported yet :(" << std::endl;
         return 0;
     }
@@ -166,19 +166,19 @@ int CPU::loadProgram(std::string filename) {
 
     program.read(reinterpret_cast<char*>(memory + 0x200), fileSize);
 
-    //TODO move all this to UI class. UI class should be in charge of computing the hash and 
-    //should output quirks/config to initialize CPU emu with
+    // TODO move all this to UI class. UI class should be in charge of computing the hash and
+    // should output quirks/config to initialize CPU emu with
 
-    //compute hash
+    // compute hash
     unsigned char hash[SHA_DIGEST_LENGTH];
     SHA1((memory + 0x200), fileSize, hash);
 
-    //change to a string and search for it in database
+    // change to a string and search for it in database
     std::ostringstream oss;
-    for (int i=0; i < SHA_DIGEST_LENGTH; i++){
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
         oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
     }
-    std::cout << oss.str() << std::endl; 
+    std::cout << oss.str() << std::endl;
 
     set_quirks(oss.str());
 
@@ -193,39 +193,38 @@ int CPU::loadProgram(std::string filename) {
     return 0;
 }
 
-
 /*-----------------[Access Functions]-----------------*/
 
-void CPU::press_key(uint8_t key){
+void CPU::press_key(uint8_t key) {
     std::lock_guard<std::mutex> lock(mtx);
     keys |= (1 << key);
     pressed = key;
 }
 
-void CPU::release_key(uint8_t key){
+void CPU::release_key(uint8_t key) {
     std::lock_guard<std::mutex> lock(mtx);
     keys ^= (1 << key);
 }
 
-uint8_t* CPU::get_screen(){
+uint8_t* CPU::get_screen() {
     std::lock_guard<std::mutex> lock(mtx);
     return screen;
 }
 
-uint8_t* CPU::check_screen(){
+uint8_t* CPU::check_screen() {
     std::lock_guard<std::mutex> lock(mtx);
-    if (screen_update){
-        return screen; 
+    if (screen_update) {
+        return screen;
     }
     return NULL;
 }
 
-bool CPU::check_stop(){
+bool CPU::check_stop() {
     std::lock_guard<std::mutex> lock(mtx);
-    return stop; 
+    return stop;
 }
 
-int CPU::check_should_beep(){
+int CPU::check_should_beep() {
     std::lock_guard<std::mutex> lock(mtx);
     if (!beep && sound > 0) {
         beep = true;
@@ -240,13 +239,13 @@ int CPU::check_should_beep(){
 
 /*-----------------[Main Functionality]-----------------*/
 
-//Do one fetch-decode cycle
+// Do one fetch-decode cycle
 void CPU::emulate_cycle() {
     uint16_t instruction = CPU::fetch();
     CPU::decode(instruction);
 }
 
-//Start emulation loop running at speed instructions per cycle
+// Start emulation loop running at speed instructions per cycle
 void CPU::emulate_loop() {
     while (1) {
         for (int i = 0; i < speed; i++) {
@@ -273,14 +272,14 @@ void CPU::emulate_loop() {
     }
 }
 
-//decrease sound and dealy timer by 1
+// decrease sound and dealy timer by 1
 void CPU::decrementTimers() {
     std::lock_guard<std::mutex> lock(mtx);
     if (delay) delay -= 1;
     if (sound) sound -= 1;
 }
 
-//set stop flag to on
+// set stop flag to on
 void CPU::terminate() {
     stop = true;
 }

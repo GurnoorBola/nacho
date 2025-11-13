@@ -4,22 +4,22 @@
 #include <cpu/cpu.h>
 #include <glad.h>
 #include <glfw3.h>
-#include <shaders/shader.h>
 #include <miniaudio.h>
+#include <shaders/shader.h>
 
-#define DEVICE_FORMAT       ma_format_f32
-#define DEVICE_CHANNELS     2
-#define DEVICE_SAMPLE_RATE  48000
+#define DEVICE_FORMAT ma_format_f32
+#define DEVICE_CHANNELS 2
+#define DEVICE_SAMPLE_RATE 48000
 
 class Display {
-public:
+   public:
     Display(CPU& cpu);
 
     void render_loop();
 
     void terminate();
 
-private:
+   private:
     CPU& core;
 
     GLFWwindow* window = NULL;

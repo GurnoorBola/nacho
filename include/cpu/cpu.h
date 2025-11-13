@@ -2,9 +2,8 @@
 
 #include <cmath>
 #include <iostream>
-#include <mutex>
 #include <json.hpp>
-
+#include <mutex>
 
 #define MAX_PROG_SIZE 4000
 #define MAX_MEM 4096
@@ -29,7 +28,7 @@ class CPU {
 
     int speed;
 
-    struct Quirks{
+    struct Quirks {
         bool shift = false;
         bool memory_increment_by_X = false;
         bool memory_leave_I_unchanged = false;
@@ -42,16 +41,16 @@ class CPU {
         bool clean_screen = false;
         bool set_collisions = false;
         bool lores_8x16 = false;
-    }; 
+    };
 
-    //TODO move this to a new UI subclass so database is loaded with the UI
-    //it is here temporarily
+    // TODO move this to a new UI subclass so database is loaded with the UI
+    // it is here temporarily
     nlohmann::json sha1_hashes;
     nlohmann::json programs;
     nlohmann::json quirk_list;
     nlohmann::json platforms;
 
-    //flags
+    // flags
 
     // flag to stop emulation
     bool stop = false;
@@ -66,25 +65,24 @@ class CPU {
     int set_quirks(std::string hash);
     int loadProgram(std::string filename);
 
-    //Main CHIP8 Functionality
+    // Main CHIP8 Functionality
     void emulate_cycle();
     void emulate_loop();
     void terminate();
 
-    // Access functions 
+    // Access functions
 
     void press_key(uint8_t key);
     void release_key(uint8_t key);
 
-    //check for update and return screen if updated else return NULL
+    // check for update and return screen if updated else return NULL
     uint8_t* get_screen();
     uint8_t* check_screen();
 
     bool check_stop();
 
-    //returns START_BEEP if should start sound, STOP_BEEP if it should stop or 0 if we should keep as is 
+    // returns START_BEEP if should start sound, STOP_BEEP if it should stop or 0 if we should keep as is
     int check_should_beep();
-
 
    private:
     uint8_t memory[MAX_MEM] = {};
@@ -103,12 +101,11 @@ class CPU {
     uint8_t pressed = 0xFF;
     bool waiting = false;
 
-
     Quirks quirks;
 
     std::mutex mtx;
 
-    bool beep = false; 
+    bool beep = false;
 
     // stack operations
     void push(uint16_t x);

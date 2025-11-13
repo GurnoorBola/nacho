@@ -1,9 +1,13 @@
 #include <display/display.h>
 
+/*-----------------[Special Member Functions]-----------------*/
+
 Display::Display(CPU& cpu) : core(cpu) {
     init_display();
     init_audio();
 }
+
+/*-----------------[Window]-----------------*/
 
 void Display::init_display() {
     glfwInit();
@@ -85,26 +89,6 @@ void Display::init_display() {
     glEnableVertexAttribArray(1);
 }
 
-void Display::init_audio() {
-    ma_device_config deviceConfig;
-    ma_waveform_config squareWaveConfig;
-
-    deviceConfig = ma_device_config_init(ma_device_type_playback);
-    deviceConfig.playback.format = DEVICE_FORMAT;
-    deviceConfig.playback.channels = DEVICE_CHANNELS;
-    deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
-    deviceConfig.dataCallback = data_callback;
-    deviceConfig.pUserData = &squareWave;
-
-    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
-        throw std::runtime_error("Failed to initialize audio device");
-    }
-
-    squareWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate,
-                                               ma_waveform_type_square, 0.2, 440);
-    ma_waveform_init(&squareWaveConfig, &squareWave);
-}
-
 void Display::render_loop() {
     // ImGui_ImplOpenGL3_NewFrame();
     // ImGui_ImplGlfw_NewFrame();
@@ -121,7 +105,7 @@ void Display::render_loop() {
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED, GL_UNSIGNED_BYTE, screen);
         }
 
-        switch(core.check_should_beep()){
+        switch (core.check_should_beep()) {
             case START_BEEP:
                 if (ma_device_start(&device) != MA_SUCCESS) {
                     std::cerr << "Failed to start playback device." << std::endl;
@@ -154,17 +138,17 @@ void Display::render_loop() {
     }
 }
 
-void Display::data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
-    ma_waveform* pSquareWave;
+void Display::terminate() {
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &EBO);
 
-    assert(pDevice->playback.channels == DEVICE_CHANNELS);
+    ma_device_uninit(&device);
 
-    pSquareWave = (ma_waveform*)pDevice->pUserData;
-    assert(pSquareWave != NULL);
+    // ImGui_ImplOpenGL3_Shutdown();
+    // ImGui_ImplGlfw_Shutdown();
+    // ImGui::DestroyContext();
 
-    ma_waveform_read_pcm_frames(pSquareWave, pOutput, frameCount, NULL);
-
-    (void)pInput;
+    glfwTerminate();
 }
 
 void Display::framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -318,18 +302,40 @@ void Display::key_callback(GLFWwindow* window, int key, int scancode, int action
                     break;
             }
             break;
-        }
+    }
 }
 
-void Display::terminate(){
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &EBO);
+/*-----------------[Audio]-----------------*/
 
-    ma_device_uninit(&device);
+void Display::init_audio() {
+    ma_device_config deviceConfig;
+    ma_waveform_config squareWaveConfig;
 
-    // ImGui_ImplOpenGL3_Shutdown();
-    // ImGui_ImplGlfw_Shutdown();
-    // ImGui::DestroyContext();
+    deviceConfig = ma_device_config_init(ma_device_type_playback);
+    deviceConfig.playback.format = DEVICE_FORMAT;
+    deviceConfig.playback.channels = DEVICE_CHANNELS;
+    deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
+    deviceConfig.dataCallback = data_callback;
+    deviceConfig.pUserData = &squareWave;
 
-    glfwTerminate();
+    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
+        throw std::runtime_error("Failed to initialize audio device");
+    }
+
+    squareWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate,
+                                               ma_waveform_type_square, 0.2, 440);
+    ma_waveform_init(&squareWaveConfig, &squareWave);
+}
+
+void Display::data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+    ma_waveform* pSquareWave;
+
+    assert(pDevice->playback.channels == DEVICE_CHANNELS);
+
+    pSquareWave = (ma_waveform*)pDevice->pUserData;
+    assert(pSquareWave != NULL);
+
+    ma_waveform_read_pcm_frames(pSquareWave, pOutput, frameCount, NULL);
+
+    (void)pInput;
 }
