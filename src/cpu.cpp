@@ -196,23 +196,23 @@ int CPU::loadProgram(std::string filename) {
 /*-----------------[Access Functions]-----------------*/
 
 void CPU::press_key(uint8_t key) {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(key_mtx);
     keys |= (1 << key);
     pressed = key;
 }
 
 void CPU::release_key(uint8_t key) {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(key_mtx);
     keys ^= (1 << key);
 }
 
 uint8_t* CPU::get_screen() {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(screen_mtx);
     return screen;
 }
 
 uint8_t* CPU::check_screen() {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(screen_mtx);
     if (screen_update) {
         return screen;
     }
@@ -220,12 +220,12 @@ uint8_t* CPU::check_screen() {
 }
 
 bool CPU::check_stop() {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(stop_mtx);
     return stop;
 }
 
 int CPU::check_should_beep() {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(sound_mtx);
     if (!beep && sound > 0) {
         beep = true;
         return 1;
@@ -250,7 +250,7 @@ void CPU::emulate_loop() {
     while (1) {
         for (int i = 0; i < speed; i++) {
             {
-                std::lock_guard<std::mutex> lock(mtx);
+                std::lock_guard<std::mutex> lock(stop_mtx);
                 if (stop) {
                     break;
                 }
@@ -262,7 +262,7 @@ void CPU::emulate_loop() {
             emulate_cycle();
         }
         {
-            std::lock_guard<std::mutex> lock(mtx);
+            std::lock_guard<std::mutex> lock(stop_mtx);
             if (stop) {
                 break;
             }
@@ -274,7 +274,7 @@ void CPU::emulate_loop() {
 
 // decrease sound and dealy timer by 1
 void CPU::decrementTimers() {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(sound_mtx);
     if (delay) delay -= 1;
     if (sound) sound -= 1;
 }
@@ -575,8 +575,8 @@ void CPU::decode(uint16_t instruction) {
 //[CHIP-8]
 //(00E0) clear screen
 void CPU::clear() {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
-    std::lock_guard<std::mutex> lock(mtx);
     screen_update = true;
 }
 
@@ -735,6 +735,7 @@ void CPU::set_reg_rand(uint8_t x_reg, uint8_t val) {
 
 //(DXYN) draw sprite pointed at by I at (V[X], V[Y]) with height N
 void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     registers[0xF] = 0;
 
     uint16_t sprite_index = I;
@@ -803,14 +804,12 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
     if (quirks.vblank) {
         draw = true;
     }
-
-    std::lock_guard<std::mutex> lock(mtx);
     screen_update = true;
 }
 
 //(EX9E) skip if key represented by VX's lower nibble is pressed
 void CPU::skip_key_pressed(uint8_t x_reg) {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(key_mtx);
     uint8_t key = registers[x_reg] & 0xF;
     if ((keys >> key) & 1) {
         PC += 2;
@@ -819,7 +818,7 @@ void CPU::skip_key_pressed(uint8_t x_reg) {
 
 //(EXA1) skip if key represented by VX's lower nibble is not pressed
 void CPU::skip_key_not_pressed(uint8_t x_reg) {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(key_mtx);
     uint8_t key = registers[x_reg] & 0xF;
     if (!((keys >> key) & 1)) {
         PC += 2;
@@ -850,7 +849,7 @@ void CPU::set_delay(uint8_t x_reg) {
 
 //(FX18) set sound timer to VX
 void CPU::set_sound(uint8_t x_reg) {
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(sound_mtx);
     sound = registers[x_reg];
 }
 
@@ -1008,6 +1007,7 @@ void CPU::jump_plus_reg(uint16_t addr, uint8_t x_reg) {
 
 //(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
 void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     if (quirks.lores_8x16 && lores) {
         display_8(x_reg, y_reg, 0xF);
         return;
@@ -1051,7 +1051,6 @@ void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
         }
         sprite_index += 2;
     }
-    std::lock_guard<std::mutex> lock(mtx);
     screen_update = true;
 }
 

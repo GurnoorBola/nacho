@@ -103,7 +103,10 @@ class CPU {
 
     Quirks quirks;
 
-    std::mutex mtx;
+    std::mutex screen_mtx;
+    std::mutex key_mtx;
+    std::mutex stop_mtx;
+    std::mutex sound_mtx;
 
     bool beep = false;
 
