@@ -1,5 +1,6 @@
 #include <Shaders/shader.h>
-#include <chip8/chip8.h>
+#include <cpu/cpu.h>
+#include <display/display.h>
 #include <glad.h>
 #include <glfw3.h>
 
@@ -8,22 +9,14 @@
 #include <thread>
 
 int main() {
-    Chip8 chip8 = Chip8(20);
-    if (chip8.init_display()) {
-        std::cout << "Error intializing display..." << std::endl;
-        return 1;
-    }
-
-    if (chip8.initAudio()) {
-        std::cout << "Error intializing audio..." << std::endl;
-        return 2;
-    }
+    CPU cpu(20);
+    Display display(cpu);
 
     // TODO prompt for filename
 
     // going to have main thread which is an uncapped infinite loop that simply draw
 
-    while (chip8.loadProgram("slipperyslope.ch8")) {
+    while (cpu.loadProgram("7-beep.ch8")) {
         std::cout << "Error loading file. Please make sure the file is in the "
                      "\"games/\" directory."
                   << std::endl;
@@ -31,13 +24,14 @@ int main() {
     }
 
     // create new thread to run emulation loop
-    std::thread emulate(&Chip8::emulate_loop, &chip8);
+    std::thread emulate(&CPU::emulate_loop, &cpu);
     emulate.detach();
 
     // render screen on main thread
-    chip8.render_loop();
+    display.render_loop();
 
-    // terminate if we stop rendering screen
-    chip8.terminate();
+    // if we stop we stop rendering screen
+    // cpu.terminate();
+    display.terminate();
     return 0;
 }
