@@ -1,0 +1,21 @@
+#include <json.hpp>
+#include <cpu/cpu.h>
+using json = nlohmann::json;
+
+class Database {
+    public:
+        Database(std::string dat_dir);
+
+        CPU::Config gen_config(std::string filename);
+    private: 
+        json sha1_hashes;
+        json programs;
+        json quirk_list;
+        json platforms;
+
+        int game_index;
+        int platform;
+
+        void set_platform_quirks(CPU::Config& config, int platform);
+        void set_game_quirks(CPU::Config& config, json& game_rom);
+};

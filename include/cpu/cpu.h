@@ -12,21 +12,19 @@
 #define HEIGHT 64
 
 #define CHIP8 0
-#define SCHIP1_1 1
 #define SCHIP_MODERN 2
-#define XO_CHIP 3
+#define SCHIP1_1 6
+#define XO_CHIP 8
 
 #define START_BEEP 1
 #define STOP_BEEP 2
 
 class CPU {
    public:
-    CPU(int speed);
+    CPU();
 
     // each bit maps to keypress
     uint16_t keys = 0;
-
-    int speed;
 
     struct Quirks {
         bool shift = false;
@@ -43,12 +41,15 @@ class CPU {
         bool lores_8x16 = false;
     };
 
-    // TODO move this to a new UI subclass so database is loaded with the UI
-    // it is here temporarily
-    nlohmann::json sha1_hashes;
-    nlohmann::json programs;
-    nlohmann::json quirk_list;
-    nlohmann::json platforms;
+    struct Config {
+        int system;
+        int speed; 
+        uint16_t start_address = 0x200;
+
+        Quirks quirks;
+    };
+
+    Config config;
 
     // flags
 
@@ -61,8 +62,6 @@ class CPU {
 
     // IO functionality
 
-    // TODO quirks struct for enabling certain quirks
-    int set_quirks(std::string hash);
     int loadProgram(std::string filename);
 
     // Main CHIP8 Functionality

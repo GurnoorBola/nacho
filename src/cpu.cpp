@@ -10,6 +10,9 @@
 #include <thread>
 #include <unordered_set>
 
+//temp
+#include <database/database.h>
+
 using json = nlohmann::json;
 
 const uint8_t fonts[] = {
@@ -50,28 +53,12 @@ const uint8_t big_fonts[] = {
     0xff, 0xff, 0xc0, 0xc0, 0xff, 0xff, 0xc0, 0xc0, 0xc0, 0xc0   // F
 };
 
-std::unordered_set<std::string> supported = {"originalChip8", "modernChip8", "superchip"};
-
 /*-----------------[Special Member Functions]-----------------*/
-CPU::CPU(int speed) {
+CPU::CPU() {
     // copy fonts to memory (0x050 - 0x09F)
     memcpy(&memory[0x50], fonts, sizeof(fonts));
     // copy big fonts to memory (0xA0 - 0x13F)
     memcpy(&memory[0xA0], big_fonts, sizeof(big_fonts));
-
-    // TODO move the below section to new UI subclass
-    // load database
-    std::fstream platform_f("database/platforms.json");
-    std::fstream programs_f("database/programs.json");
-    std::fstream quirks_f("database/quirks.json");
-    std::fstream sha1_hashes_f("database/sha1-hashes.json");
-
-    platforms = json::parse(platform_f);
-    programs = json::parse(programs_f);
-    quirk_list = json::parse(quirks_f);
-    sha1_hashes = json::parse(sha1_hashes_f);
-
-    CPU::speed = speed;
 };
 
 /*-----------------[Stack]-----------------*/
@@ -104,83 +91,31 @@ uint16_t CPU::peek() {
 // if failure game not compatible with emu
 // called after loading program into memory
 
-// TODO rename to init db
-
-int CPU::set_quirks(std::string hash) {
-    int index = sha1_hashes.value(hash, -1);
-    if (index == -1) {
-        std::cout << "Game not found in database. Please select a system..." << std::endl;
-        return 0;
-    }
-    std::cout << "Game found at index " << index << std::endl;
-
-    json game = programs[index];
-    std::vector<std::string> platform_list = game["roms"][hash]["platforms"];
-    std::string platform_name = "";
-    for (std::string p : platform_list) {
-        if (supported.find(p) != supported.end()) {
-            platform_name = p;
-        }
-    }
-
-    if (platform_name.empty()) {
-        std::cout << "Game: " << game["title"] << " is not spported yet :(" << std::endl;
-        return 0;
-    }
-
-    std::cout << "Platform " << platform_name << std::endl;
-
-    json platform_quirks = platforms[platform_name]["quirks"];
-    speed = platforms[platform_name]["defaultTickrate"];
-    quirks.shift = platform_quirks["shift"];
-    quirks.memory_increment_by_X = platform_quirks["memoryIncrementByX"];
-    quirks.memory_leave_I_unchanged = platform_quirks["memoryLeaveIUnchanged"];
-    quirks.wrap = platform_quirks["wrap"];
-    quirks.jump = platform_quirks["jump"];
-    quirks.vblank = platform_quirks["vblank"];
-    quirks.logic = platform_quirks["logic"];
-    quirks.draw_zero = platform_quirks["drawZero"];
-    quirks.half_scroll_lores = platform_quirks["halfScrollLores"];
-    quirks.clean_screen = platform_quirks["cleanScreen"];
-    quirks.set_collisions = platform_quirks["setCollisions"];
-    quirks.lores_8x16 = platform_quirks["lores8x16"];
-    return 0;
-}
-
-// load program into memory starting from 0x200 (512)
+// load program into memory starting from 0x200 (512) 
 // TODO hash binary check for metadata in db and apply
 int CPU::loadProgram(std::string filename) {
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
-        return 1;
+        return 1; 
     }
+
+    //TODO remove this and move to GUI class
+    Database db("database");
+    config = db.gen_config(filename);
+
     program.seekg(0, std::ios::end);
     std::streampos fileSize = program.tellg();
     program.seekg(0, std::ios::beg);
 
     if (fileSize > MAX_PROG_SIZE) {
         std::cerr << "File size exceeds max program size" << std::endl;
-        return 2;
+        return 2; 
     }
 
-    program.read(reinterpret_cast<char*>(memory + 0x200), fileSize);
+    std::cout << config.speed << std::endl;
 
-    // TODO move all this to UI class. UI class should be in charge of computing the hash and
-    // should output quirks/config to initialize CPU emu with
-
-    // compute hash
-    unsigned char hash[SHA_DIGEST_LENGTH];
-    SHA1((memory + 0x200), fileSize, hash);
-
-    // change to a string and search for it in database
-    std::ostringstream oss;
-    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
-    }
-    std::cout << oss.str() << std::endl;
-
-    set_quirks(oss.str());
+    program.read(reinterpret_cast<char*>(memory + config.start_address), fileSize);
 
     for (int i = 512; i < 512 + (int)fileSize; i++) {
         printf("%02x ", memory[i]);
@@ -248,7 +183,7 @@ void CPU::emulate_cycle() {
 // Start emulation loop running at speed instructions per cycle
 void CPU::emulate_loop() {
     while (1) {
-        for (int i = 0; i < speed; i++) {
+        for (int i = 0; i < config.speed; i++) {
             {
                 std::lock_guard<std::mutex> lock(stop_mtx);
                 if (stop) {

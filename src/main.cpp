@@ -9,7 +9,7 @@
 #include <thread>
 
 int main() {
-    CPU cpu(20);
+    CPU cpu;
     Display display(cpu);
 
     // TODO prompt for filename
