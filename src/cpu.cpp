@@ -149,6 +149,7 @@ uint8_t* CPU::get_screen() {
 uint8_t* CPU::check_screen() {
     std::lock_guard<std::mutex> lock(screen_mtx);
     if (screen_update) {
+        screen_update = false;
         return screen;
     }
     return NULL;
