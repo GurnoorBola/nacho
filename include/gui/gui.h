@@ -11,5 +11,4 @@ class GUI {
 
     private:
         CPU& core;
-
 };

@@ -12,7 +12,6 @@ Display::Display(CPU& cpu) : core(cpu), gui(core) {
 
 void Display::init_display() {
     glfwInit();
-    glfwWindowHint(GLFW_RESIZABLE, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -21,6 +20,8 @@ void Display::init_display() {
     if (!window) {
         throw std::runtime_error("Failed to create GLFW window");
     }
+
+    glfwSetWindowAspectRatio(window, WIDTH, HEIGHT);
 
     glfwMakeContextCurrent(window);
     glfwSetWindowUserPointer(window, this);
@@ -151,7 +152,7 @@ void Display::terminate() {
 }
 
 void Display::framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, WIDTH * 10, HEIGHT * 10);
+    glViewport(0, 0, width, height);
 }
 
 void Display::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
