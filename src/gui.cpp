@@ -27,7 +27,7 @@ void GUI::update(){
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {};
-            if (ImGui::MenuItem("Quit", "Esc")) { core.stop = true; }
+            if (ImGui::MenuItem("Quit", "Esc")) { core.terminate(); }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debugger")){
