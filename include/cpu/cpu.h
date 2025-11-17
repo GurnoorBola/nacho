@@ -44,6 +44,10 @@ class CPU {
     struct Config {
         int system;
         int speed; 
+
+        std::array<float, 3> onColor = {1.0f, 1.0f, 1.0f};
+        std::array<float, 3> offColor = {0.0f, 0.0f, 0.0f};
+
         uint16_t start_address = 0x200;
 
         Quirks quirks;

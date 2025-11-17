@@ -2,8 +2,9 @@
 
 /*-----------------[Special Member Functions]-----------------*/
 
-Display::Display(CPU& cpu) : core(cpu) {
+Display::Display(CPU& cpu) : core(cpu), gui(core) {
     init_display();
+    gui.init_gui(window);
     init_audio();
 }
 
@@ -28,20 +29,11 @@ void Display::init_display() {
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         throw std::runtime_error("Failed to initialize GLAD");
     }
-    // IMGUI_CHECKVERSION();
-    // ImGui::CreateContext();
-    // ImGuiIO& io = ImGui::GetIO();
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-    // ImGui_ImplGlfw_InitForOpenGL(window, true);
-    // ImGui_ImplOpenGL3_Init();
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     glViewport(0, 0, WIDTH * 10, HEIGHT * 10);
     glfwSetFramebufferSizeCallback(window, Display::framebuffer_size_callback);
-
-    // set clear color
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     // create shader object
     shader = Shader("shaders/shader.vs", "shaders/shader.fs");
@@ -87,14 +79,13 @@ void Display::init_display() {
 
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    //set on and off color uniforms
+    shader.setVec3fv("onColor", core.config.onColor.data());
+    shader.setVec3fv("offColor", core.config.offColor.data());
 }
 
 void Display::render_loop() {
-    // ImGui_ImplOpenGL3_NewFrame();
-    // ImGui_ImplGlfw_NewFrame();
-    // ImGui::NewFrame();
-    // ImGui::ShowDemoWindow();
-
     while (!glfwWindowShouldClose(window)) {
         if (core.check_stop()) {
             break;
@@ -121,6 +112,8 @@ void Display::render_loop() {
                 break;
         }
 
+        gui.update();
+
         glClear(GL_COLOR_BUFFER_BIT);
 
         shader.use();
@@ -130,12 +123,18 @@ void Display::render_loop() {
 
         glBindVertexArray(0);
 
-        // ImGui::Render();
-        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        gui.render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+}
+
+void Display::update_config(){
+    shader.use();
+    //set on and off color uniforms
+    shader.setVec3fv("onColor", core.config.onColor.data());
+    shader.setVec3fv("offColor", core.config.offColor.data());
 }
 
 void Display::terminate() {

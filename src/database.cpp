@@ -75,6 +75,23 @@ void Database::set_game_quirks(CPU::Config& config, json& game_rom){
     int start_address = game_rom.value("startAddress", -1);
     if (start_address != -1) config.start_address = start_address;
     //TODO add more advanced things from json
+    json colors = game_rom.value("colors", json(nullptr));
+    if (colors != nullptr) {
+        std::vector<std::string> pixels = colors.value("pixels", std::vector<std::string>()); 
+        if (!pixels.empty()) {
+            config.offColor = hex_to_rgb(pixels[0]);
+            config.onColor = hex_to_rgb(pixels[1]);
+        }
+    }
+}
+
+std::array<float, 3> Database::hex_to_rgb(std::string hex){
+    std::array<float, 3> rgb;
+    rgb[0] = std::stoi(hex.substr(1, 2), nullptr, 16)/255.0f;
+    rgb[1] = std::stoi(hex.substr(3, 2), nullptr, 16)/255.0f;
+    rgb[2] = std::stoi(hex.substr(5, 2), nullptr, 16)/255.0f;
+
+    return rgb;
 }
 
 //generates a configuration and sets internal variables to store quick info related to the game

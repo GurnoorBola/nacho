@@ -1,11 +1,9 @@
-// #include <imgui.h>
-// #include <imgui_impl_glfw.h>
-// #include <imgui_impl_opengl3.h>
 #include <cpu/cpu.h>
 #include <glad.h>
 #include <glfw3.h>
 #include <miniaudio.h>
 #include <shaders/shader.h>
+#include <gui/gui.h>
 
 #define DEVICE_FORMAT ma_format_f32
 #define DEVICE_CHANNELS 2
@@ -17,10 +15,14 @@ class Display {
 
     void render_loop();
 
+    void update_config();
+
     void terminate();
 
    private:
     CPU& core;
+
+    GUI gui;
 
     GLFWwindow* window = NULL;
     Shader shader;

@@ -16,12 +16,15 @@ int main() {
 
     // going to have main thread which is an uncapped infinite loop that simply draw
 
-    while (cpu.loadProgram("slipperyslope.ch8")) {
+    while (cpu.loadProgram("spockpaperscissors.ch8")) {
         std::cout << "Error loading file. Please make sure the file is in the "
                      "\"games/\" directory."
                   << std::endl;
         return 3;
     }
+
+    //update on and off pixels based on config
+    display.update_config();
 
     // create new thread to run emulation loop
     std::thread emulate(&CPU::emulate_loop, &cpu);

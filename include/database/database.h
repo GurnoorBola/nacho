@@ -18,4 +18,5 @@ class Database {
 
         void set_platform_quirks(CPU::Config& config, int platform);
         void set_game_quirks(CPU::Config& config, json& game_rom);
+        std::array<float, 3> hex_to_rgb(std::string hex);
 };
