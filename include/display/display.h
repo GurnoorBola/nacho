@@ -33,8 +33,6 @@ class Display {
     ma_device device;
     ma_waveform squareWave;
 
-    float top;
-
     unsigned int VAO;
     unsigned int VBO;
     unsigned int EBO;

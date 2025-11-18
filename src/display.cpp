@@ -40,7 +40,7 @@ void Display::init_display() {
     shader = Shader("shaders/shader.vs", "shaders/shader.fs");
     shader.use();
     
-    top = 1.0 - (2.0*OFFSET)/(HEIGHT + OFFSET);
+    float top = 1.0 - (2.0*OFFSET)/(HEIGHT + OFFSET);
 
     float vertices[] = {
         // positions            // texture coords
@@ -155,9 +155,7 @@ void Display::terminate() {
 }
 
 void Display::framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    Display* display = static_cast<Display*>(glfwGetWindowUserPointer(window));
     glViewport(0, 0, width, height);
-    display->top = ((0.5*height) - OFFSET)/((0.5*height));
 }
 
 void Display::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
