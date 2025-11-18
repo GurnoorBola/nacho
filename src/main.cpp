@@ -16,7 +16,7 @@ int main() {
 
     // going to have main thread which is an uncapped infinite loop that simply draw
 
-    while (cpu.loadProgram("spockpaperscissors.ch8")) {
+    while (cpu.loadProgram("octopeg.ch8")) {
         std::cout << "Error loading file. Please make sure the file is in the "
                      "\"games/\" directory."
                   << std::endl;

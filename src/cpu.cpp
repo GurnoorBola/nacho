@@ -861,7 +861,8 @@ void CPU::scroll_down_n(uint8_t val) {
             int index = (row * WIDTH) + col;
             if ((row - val) >= 0) {
                 int replace_index = ((row - val) * WIDTH) + col;
-                screen[index] = screen[replace_index];
+                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -881,7 +882,8 @@ void CPU::scroll_right_four() {
             int index = (row * WIDTH) + col;
             if ((col - val) >= 0) {
                 int replace_index = (row * WIDTH) + (col - val);
-                screen[index] = screen[replace_index];
+                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -901,7 +903,8 @@ void CPU::scroll_Left_four() {
             int index = (row * WIDTH) + col;
             if ((col + val) < WIDTH) {
                 int replace_index = (row * WIDTH) + (col + val);
-                screen[index] = screen[replace_index];
+                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -1008,4 +1011,76 @@ void CPU::read_flags_storage(uint8_t x_reg) {
     for (uint8_t i = 0; i <= x_reg; i++) {
         registers[i] = flags[i];
     }
+}
+
+//[XO-CHIP]
+
+// 00DN scroll screen up by N pixels
+void CPU::scroll_up_n(uint8_t val) {
+    //scroll only selected bit planes
+    // start from bottom and replace with n lower if in bounds else set to 0
+    if (lores) {
+        val *= 2;
+    }
+    for (int row = 0; row < HEIGHT; row++) {
+        for (int col = 0; col < WIDTH; col++) {
+            int index = (row * WIDTH) + col;
+            if ((row + val) < HEIGHT) {
+                int replace_index = ((row + val) * WIDTH) + col;
+                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
+            } else {
+                screen[index] = 0;
+            }
+        }
+    }
+}
+
+//TODO recheck implementation if something breaking
+//5XY2 write memory starting from register X to register y
+void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg){
+    uint16_t addr = I;
+
+    int8_t inc = x_reg >= y_reg ? 1 : -1;
+
+    for (uint8_t reg = x_reg; reg != y_reg; reg+=inc){
+        memory[addr] = registers[reg];
+        addr += 1;
+    }
+    memory[addr] = registers[y_reg];
+}
+
+//TODO recheck implementation if something breaking
+//5XY2 read memory starting at I into register X to register y
+void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg){
+    uint16_t addr = I;
+
+    int8_t inc = x_reg >= y_reg ? 1 : -1;
+
+    for (uint8_t reg = x_reg; reg != y_reg; reg+=inc){
+        registers[reg] = memory[addr];
+        addr += 1;
+    }
+    registers[y_reg] = memory[addr];
+} 
+
+//TODO test this if things are breaking
+//FOOO NNNN read the next two bytes into I
+void CPU::set_index_long(){
+   I = fetch();
+} 
+
+//FX01 selects the bit plane VX to use for drawing and scrolling
+void CPU::select_plane(uint8_t x_reg){
+    bit_plane = registers[x_reg];
+}
+
+//F002 load 16 byte audio pattern pointed by I into audio pattern buffer
+void set_waveform() {
+    //TODO implement this
+}    
+
+//FX3A set playback rate to 4000*2^((vX-64)/48)Hz
+void set_pitch() {
+    //TODO implement this
 }

@@ -101,6 +101,8 @@ class CPU {
     uint8_t flags[16] = {};
     bool lores = true;
 
+    uint8_t bit_plane = 0b01;
+
     uint8_t pressed = 0xFF;
     bool waiting = false;
 
@@ -187,10 +189,13 @@ class CPU {
     //[schip8] opcodes (1.1)
     void scroll_down_n(uint8_t val);  // 00CN scroll screen down by N pixels
                                       // (SCHIP Quirk: lores scrolls half)
+                                      // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
     void scroll_right_four();         // 00FB scroll screen right by four pixels
                                       // (SCHIP Quirk: lores scrolls half)
+                                      // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
     void scroll_Left_four();          // 00FC scroll screen left by four pixels
                                       // (SCHIP Quirk: lores scrolls half)
+                                      // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
     void exit();                      // 00FD exit interpreter
     void switch_lores();              // 00FE switch to lores (64x32) mode (SCHIP Quirk:
                                       // original didnt clear screen)(but I will MODERN)
@@ -206,4 +211,19 @@ class CPU {
                                               // lowest nibble of V[X]
     void write_flags_storage(uint8_t x_reg);  // FX75 write V[0] to V[X] in flags storage
     void read_flags_storage(uint8_t x_reg);   // FX85 read flags[0] to flags[X] into registers
+
+    //[xo-chip] opcodes
+
+    //TODO change scroll functions to only scroll selected bitplane
+    void scroll_up_n(uint8_t val);  // 00DN scroll screen up by N pixels
+                                    // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
+    void write_reg_mem_range(uint8_t x_reg, uint8_t y_reg); //5XY2 write memory starting from register X to register y into memory at I
+                                                            //X is not necessarily less than Y
+    void read_reg_mem_range(uint8_t x_reg, uint8_t y_reg);  //5XY2 read memory starting at I into register X to register y
+                                                            //X is not necessarily less than Y
+    void set_index_long();  //FOOO NNNN read the next two bytes into I
+                            //increment to start of next instruction skipping NNNN
+    void select_plane(uint8_t x_reg);    //FX01 select the bit plane to use for drawing and scrolling
+    void set_waveform();    //F002 load 16 byte audio pattern pointed by I into audio pattern buffer
+    void set_pitch();       //FX3A set playback rate to 4000*2^((vX-64)/48)Hz
 };
