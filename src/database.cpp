@@ -1,13 +1,16 @@
+#include <cpu/cpu.h>
+#include <database/database.h>
+#include <openssl/sha.h>
+
 #include <fstream>
 #include <unordered_map>
-#include <cpu/cpu.h>
-#include <openssl/sha.h>
-#include <database/database.h>
 
-std::unordered_map<std::string, int> supported = {{"originalChip8",  CHIP8}, {"modernChip8", SCHIP_MODERN}, {"superchip", SCHIP1_1}};
+std::unordered_map<std::string, int> supported = {{"originalChip8", CHIP8},
+                                                  {"modernChip8", SCHIP_MODERN},
+                                                  {"superchip", SCHIP1_1}};
 
 Database::Database(std::string data_dir) {
-    //open files and parse into json objects
+    // open files and parse into json objects
     std::ifstream platform_f(data_dir + "/platforms.json");
     std::ifstream programs_f(data_dir + "/programs.json");
     std::ifstream quirks_f(data_dir + "/quirks.json");
@@ -19,12 +22,12 @@ Database::Database(std::string data_dir) {
     sha1_hashes = json::parse(sha1_hashes_f);
 };
 
-//reads in bytes and generates the hash of the bytes
-std::string hash_bin(std::string filename){
+// reads in bytes and generates the hash of the bytes
+std::string hash_bin(std::string filename) {
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
-        return ""; 
+        return "";
     }
     program.seekg(0, std::ios::end);
     std::streampos fileSize = program.tellg();
@@ -32,7 +35,7 @@ std::string hash_bin(std::string filename){
 
     if (fileSize > MAX_PROG_SIZE) {
         std::cerr << "File size exceeds max program size" << std::endl;
-        return ""; 
+        return "";
     }
     uint8_t bytes[MAX_PROG_SIZE];
     program.read(reinterpret_cast<char*>(bytes), fileSize);
@@ -48,12 +51,12 @@ std::string hash_bin(std::string filename){
     return oss.str();
 }
 
-void Database::set_platform_quirks(CPU::Config& config, int platform){
-    //set platform defaults
+void Database::set_platform_quirks(CPU::Config& config, int platform) {
+    // set platform defaults
     json& platform_data = platforms[platform];
     json& platform_quirks = platform_data["quirks"];
 
-    config.system = platform; 
+    config.system = platform;
     config.speed = platform_data["defaultTickrate"];
     config.quirks.shift = platform_quirks["shift"];
     config.quirks.memory_increment_by_X = platform_quirks["memoryIncrementByX"];
@@ -69,15 +72,15 @@ void Database::set_platform_quirks(CPU::Config& config, int platform){
     config.quirks.lores_8x16 = platform_quirks["lores8x16"];
 }
 
-void Database::set_game_quirks(CPU::Config& config, json& game_rom){
+void Database::set_game_quirks(CPU::Config& config, json& game_rom) {
     int tick_rate = game_rom.value("tickrate", -1);
     if (tick_rate != -1) config.speed = tick_rate;
     int start_address = game_rom.value("startAddress", -1);
     if (start_address != -1) config.start_address = start_address;
-    //TODO add more advanced things from json
+    // TODO add more advanced things from json
     json colors = game_rom.value("colors", json(nullptr));
     if (colors != nullptr) {
-        std::vector<std::string> pixels = colors.value("pixels", std::vector<std::string>()); 
+        std::vector<std::string> pixels = colors.value("pixels", std::vector<std::string>());
         if (!pixels.empty()) {
             config.offColor = hex_to_rgb(pixels[0]);
             config.onColor = hex_to_rgb(pixels[1]);
@@ -85,18 +88,18 @@ void Database::set_game_quirks(CPU::Config& config, json& game_rom){
     }
 }
 
-std::array<float, 3> Database::hex_to_rgb(std::string hex){
+std::array<float, 3> Database::hex_to_rgb(std::string hex) {
     std::array<float, 3> rgb;
-    rgb[0] = std::stoi(hex.substr(1, 2), nullptr, 16)/255.0f;
-    rgb[1] = std::stoi(hex.substr(3, 2), nullptr, 16)/255.0f;
-    rgb[2] = std::stoi(hex.substr(5, 2), nullptr, 16)/255.0f;
+    rgb[0] = std::stoi(hex.substr(1, 2), nullptr, 16) / 255.0f;
+    rgb[1] = std::stoi(hex.substr(3, 2), nullptr, 16) / 255.0f;
+    rgb[2] = std::stoi(hex.substr(5, 2), nullptr, 16) / 255.0f;
 
     return rgb;
 }
 
-//generates a configuration and sets internal variables to store quick info related to the game
-//will choose best system to emulate automatically.
-CPU::Config Database::gen_config(std::string filename){
+// generates a configuration and sets internal variables to store quick info related to the game
+// will choose best system to emulate automatically.
+CPU::Config Database::gen_config(std::string filename) {
     CPU::Config config;
     std::string hash = hash_bin(filename);
     std::cout << hash << std::endl;
@@ -127,10 +130,10 @@ CPU::Config Database::gen_config(std::string filename){
 
     platform = supported[platform_name];
 
-    //set platform quirks
+    // set platform quirks
     set_platform_quirks(config, platform);
 
-    //set game specific quirks
+    // set game specific quirks
     set_game_quirks(config, game_rom);
 
     return config;

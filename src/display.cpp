@@ -81,7 +81,7 @@ void Display::init_display() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    //set on and off color uniforms
+    // set on and off color uniforms
     shader.setVec3fv("onColor", core.config.onColor.data());
     shader.setVec3fv("offColor", core.config.offColor.data());
 }
@@ -131,9 +131,9 @@ void Display::render_loop() {
     }
 }
 
-void Display::update_config(){
+void Display::update_config() {
     shader.use();
-    //set on and off color uniforms
+    // set on and off color uniforms
     shader.setVec3fv("onColor", core.config.onColor.data());
     shader.setVec3fv("offColor", core.config.offColor.data());
 }

@@ -10,7 +10,7 @@
 #include <thread>
 #include <unordered_set>
 
-//temp
+// temp
 #include <database/database.h>
 
 using json = nlohmann::json;
@@ -91,16 +91,16 @@ uint16_t CPU::peek() {
 // if failure game not compatible with emu
 // called after loading program into memory
 
-// load program into memory starting from 0x200 (512) 
+// load program into memory starting from 0x200 (512)
 // TODO hash binary check for metadata in db and apply
 int CPU::loadProgram(std::string filename) {
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
-        return 1; 
+        return 1;
     }
 
-    //TODO remove this and move to GUI class
+    // TODO remove this and move to GUI class
     Database db("database");
     config = db.gen_config(filename);
 
@@ -110,7 +110,7 @@ int CPU::loadProgram(std::string filename) {
 
     if (fileSize > MAX_PROG_SIZE) {
         std::cerr << "File size exceeds max program size" << std::endl;
-        return 2; 
+        return 2;
     }
 
     std::cout << config.speed << std::endl;
@@ -708,12 +708,12 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
             if (col >= WIDTH) {
                 break;
             }
-            
-            //current byte in the sprite 11111 1111*1*
+
+            // current byte in the sprite 11111 1111*1*
             uint8_t bit = (sprite_row >> pixel_index) & 1;
-            
-            //need to mask it to current bit_plane
-            //if we need to & bit_plane with extended version of bit
+
+            // need to mask it to current bit_plane
+            // if we need to & bit_plane with extended version of bit
             uint8_t curr_plane = bit_plane & (-bit);
 
             pixel_index--;
@@ -723,8 +723,8 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
                 int top_right = (row * WIDTH) + col + 1;
                 int bot_left = ((row + 1) * WIDTH) + col;
                 int bot_right = ((row + 1) * WIDTH) + col + 1;
-                if ((screen[top_left] & curr_plane) || (screen[top_right] & curr_plane) || (screen[bot_left] & curr_plane) ||
-                    (screen[bot_right] & curr_plane)) {
+                if ((screen[top_left] & curr_plane) || (screen[top_right] & curr_plane) ||
+                    (screen[bot_left] & curr_plane) || (screen[bot_right] & curr_plane)) {
                     registers[0xF] = 1;
                 }
                 screen[top_left] ^= curr_plane;
@@ -868,8 +868,8 @@ void CPU::scroll_down_n(uint8_t val) {
             int index = (row * WIDTH) + col;
             if ((row - val) >= 0) {
                 int replace_index = ((row - val) * WIDTH) + col;
-                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
-                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
+                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -889,8 +889,8 @@ void CPU::scroll_right_four() {
             int index = (row * WIDTH) + col;
             if ((col - val) >= 0) {
                 int replace_index = (row * WIDTH) + (col - val);
-                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
-                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
+                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -910,8 +910,8 @@ void CPU::scroll_Left_four() {
             int index = (row * WIDTH) + col;
             if ((col + val) < WIDTH) {
                 int replace_index = (row * WIDTH) + (col + val);
-                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
-                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
+                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -1027,8 +1027,8 @@ void CPU::read_flags_storage(uint8_t x_reg) {
 
 // 00DN scroll screen up by N pixels
 void CPU::scroll_up_n(uint8_t val) {
-    //scroll only selected bit planes
-    // start from bottom and replace with n lower if in bounds else set to 0
+    // scroll only selected bit planes
+    //  start from bottom and replace with n lower if in bounds else set to 0
     if (lores) {
         val *= 2;
     }
@@ -1037,8 +1037,8 @@ void CPU::scroll_up_n(uint8_t val) {
             int index = (row * WIDTH) + col;
             if ((row + val) < HEIGHT) {
                 int replace_index = ((row + val) * WIDTH) + col;
-                screen[index] &= ~(bit_plane); //zeroes out bits that will be changed
-                screen[index] |= bit_plane & screen[replace_index]; //places the scrolled bits in correct bit spot
+                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+                screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
             } else {
                 screen[index] = 0;
             }
@@ -1046,51 +1046,51 @@ void CPU::scroll_up_n(uint8_t val) {
     }
 }
 
-//TODO recheck implementation if something breaking
-//5XY2 write memory starting from register X to register y
-void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg){
+// TODO recheck implementation if something breaking
+// 5XY2 write memory starting from register X to register y
+void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     uint16_t addr = I;
 
     int8_t inc = x_reg >= y_reg ? 1 : -1;
 
-    for (uint8_t reg = x_reg; reg != y_reg; reg+=inc){
+    for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
         memory[addr] = registers[reg];
         addr += 1;
     }
     memory[addr] = registers[y_reg];
 }
 
-//TODO recheck implementation if something breaking
-//5XY2 read memory starting at I into register X to register y
-void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg){
+// TODO recheck implementation if something breaking
+// 5XY2 read memory starting at I into register X to register y
+void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     uint16_t addr = I;
 
     int8_t inc = x_reg >= y_reg ? 1 : -1;
 
-    for (uint8_t reg = x_reg; reg != y_reg; reg+=inc){
+    for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
         registers[reg] = memory[addr];
         addr += 1;
     }
     registers[y_reg] = memory[addr];
-} 
+}
 
-//TODO test this if things are breaking
-//FOOO NNNN read the next two bytes into I
-void CPU::set_index_long(){
-   I = fetch();
-} 
+// TODO test this if things are breaking
+// FOOO NNNN read the next two bytes into I
+void CPU::set_index_long() {
+    I = fetch();
+}
 
-//FX01 selects the bit plane VX to use for drawing and scrolling
-void CPU::select_plane(uint8_t x_reg){
+// FX01 selects the bit plane VX to use for drawing and scrolling
+void CPU::select_plane(uint8_t x_reg) {
     bit_plane = registers[x_reg];
 }
 
-//F002 load 16 byte audio pattern pointed by I into audio pattern buffer
+// F002 load 16 byte audio pattern pointed by I into audio pattern buffer
 void set_waveform() {
-    //TODO implement this
-}    
+    // TODO implement this
+}
 
-//FX3A set playback rate to 4000*2^((vX-64)/48)Hz
+// FX3A set playback rate to 4000*2^((vX-64)/48)Hz
 void set_pitch() {
-    //TODO implement this
+    // TODO implement this
 }

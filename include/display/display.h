@@ -1,9 +1,9 @@
 #include <cpu/cpu.h>
 #include <glad.h>
 #include <glfw3.h>
+#include <gui/gui.h>
 #include <miniaudio.h>
 #include <shaders/shader.h>
-#include <gui/gui.h>
 
 #define DEVICE_FORMAT ma_format_f32
 #define DEVICE_CHANNELS 2

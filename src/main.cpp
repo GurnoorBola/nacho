@@ -23,7 +23,7 @@ int main() {
         return 3;
     }
 
-    //update on and off pixels based on config
+    // update on and off pixels based on config
     display.update_config();
 
     // create new thread to run emulation loop

@@ -43,7 +43,7 @@ class CPU {
 
     struct Config {
         int system;
-        int speed; 
+        int speed;
 
         std::array<float, 3> onColor = {1.0f, 1.0f, 1.0f};
         std::array<float, 3> offColor = {0.0f, 0.0f, 0.0f};
@@ -214,16 +214,16 @@ class CPU {
 
     //[xo-chip] opcodes
 
-    //TODO change scroll functions to only scroll selected bitplane
-    void scroll_up_n(uint8_t val);  // 00DN scroll screen up by N pixels
-                                    // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
-    void write_reg_mem_range(uint8_t x_reg, uint8_t y_reg); //5XY2 write memory starting from register X to register y into memory at I
-                                                            //X is not necessarily less than Y
-    void read_reg_mem_range(uint8_t x_reg, uint8_t y_reg);  //5XY2 read memory starting at I into register X to register y
-                                                            //X is not necessarily less than Y
-    void set_index_long();  //FOOO NNNN read the next two bytes into I
-                            //increment to start of next instruction skipping NNNN
-    void select_plane(uint8_t x_reg);    //FX01 select the bit plane to use for drawing and scrolling
-    void set_waveform();    //F002 load 16 byte audio pattern pointed by I into audio pattern buffer
-    void set_pitch();       //FX3A set playback rate to 4000*2^((vX-64)/48)Hz
+    // TODO change scroll functions to only scroll selected bitplane
+    void scroll_up_n(uint8_t val);                           // 00DN scroll screen up by N pixels
+                                                             // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
+    void write_reg_mem_range(uint8_t x_reg, uint8_t y_reg);  // 5XY2 write memory starting from register X to register y
+                                                             // into memory at I X is not necessarily less than Y
+    void read_reg_mem_range(uint8_t x_reg, uint8_t y_reg);  // 5XY2 read memory starting at I into register X to
+                                                            // register y X is not necessarily less than Y
+    void set_index_long();  // FOOO NNNN read the next two bytes into I
+                            // increment to start of next instruction skipping NNNN
+    void select_plane(uint8_t x_reg);  // FX01 select the bit plane to use for drawing and scrolling
+    void set_waveform();               // F002 load 16 byte audio pattern pointed by I into audio pattern buffer
+    void set_pitch();                  // FX3A set playback rate to 4000*2^((vX-64)/48)Hz
 };
