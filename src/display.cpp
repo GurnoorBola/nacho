@@ -16,12 +16,12 @@ void Display::init_display() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(WIDTH * 10, HEIGHT * 10, "CHIP-8", NULL, NULL);
+    window = glfwCreateWindow(WIDTH * SCALE, (HEIGHT + OFFSET) * SCALE, "CHIP-8", NULL, NULL);
     if (!window) {
         throw std::runtime_error("Failed to create GLFW window");
     }
 
-    glfwSetWindowAspectRatio(window, WIDTH, HEIGHT);
+    glfwSetWindowAspectRatio(window, WIDTH, (HEIGHT+OFFSET));
 
     glfwMakeContextCurrent(window);
     glfwSetWindowUserPointer(window, this);
@@ -33,19 +33,21 @@ void Display::init_display() {
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    glViewport(0, 0, WIDTH * 10, HEIGHT * 10);
+    glViewport(0, 0, WIDTH * SCALE, (HEIGHT + OFFSET) * SCALE);
     glfwSetFramebufferSizeCallback(window, Display::framebuffer_size_callback);
 
     // create shader object
     shader = Shader("shaders/shader.vs", "shaders/shader.fs");
     shader.use();
+    
+    top = 1.0 - (2.0*OFFSET)/(HEIGHT + OFFSET);
 
     float vertices[] = {
         // positions            // texture coords
-        1.0f,  1.0f,  0.0f, 1.0f, 1.0f,  // top right
-        1.0f,  -1.0f, 0.0f, 1.0f, 0.0f,  // bottom right
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  // bottom left
-        -1.0f, 1.0f,  0.0f, 0.0f, 1.0f   // top left
+        1.0f,  top,  0.0f, 1.0f, 1.0f,  // top right
+        1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  // bottom right
+       -1.0f, -1.0f,  0.0f, 0.0f, 0.0f,  // bottom left
+       -1.0f,  top,  0.0f, 0.0f, 1.0f   // top left
     };
 
     unsigned int indices[] = {
@@ -136,6 +138,7 @@ void Display::update_config() {
     // set on and off color uniforms
     shader.setVec3fv("onColor", core.config.onColor.data());
     shader.setVec3fv("offColor", core.config.offColor.data());
+    glClearColor(core.config.offColor.data()[0], core.config.offColor.data()[1], core.config.offColor.data()[2], 1.0f);
 }
 
 void Display::terminate() {
@@ -152,7 +155,9 @@ void Display::terminate() {
 }
 
 void Display::framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    Display* display = static_cast<Display*>(glfwGetWindowUserPointer(window));
     glViewport(0, 0, width, height);
+    display->top = ((0.5*height) - OFFSET)/((0.5*height));
 }
 
 void Display::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {

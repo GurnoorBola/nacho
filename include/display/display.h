@@ -9,6 +9,9 @@
 #define DEVICE_CHANNELS 2
 #define DEVICE_SAMPLE_RATE 48000
 
+#define SCALE 10
+#define OFFSET 3 
+
 class Display {
    public:
     Display(CPU& cpu);
@@ -29,6 +32,8 @@ class Display {
 
     ma_device device;
     ma_waveform squareWave;
+
+    float top;
 
     unsigned int VAO;
     unsigned int VBO;
