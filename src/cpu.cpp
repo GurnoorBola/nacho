@@ -509,6 +509,7 @@ void CPU::decode(uint16_t instruction) {
 /*-----------------[Opcodes]-----------------*/
 
 //[CHIP-8]
+
 //(00E0) clear screen
 void CPU::clear() {
     std::lock_guard<std::mutex> lock(screen_mtx);
@@ -707,8 +708,14 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
             if (col >= WIDTH) {
                 break;
             }
-
+            
+            //current byte in the sprite 11111 1111*1*
             uint8_t bit = (sprite_row >> pixel_index) & 1;
+            
+            //need to mask it to current bit_plane
+            //if we need to & bit_plane with extended version of bit
+            uint8_t curr_plane = bit_plane & (-bit);
+
             pixel_index--;
 
             if (lores) {
@@ -716,20 +723,20 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
                 int top_right = (row * WIDTH) + col + 1;
                 int bot_left = ((row + 1) * WIDTH) + col;
                 int bot_right = ((row + 1) * WIDTH) + col + 1;
-                if ((screen[top_left] & bit) || (screen[top_right] & bit) || (screen[bot_left] & bit) ||
-                    (screen[bot_right] & bit)) {
+                if ((screen[top_left] & curr_plane) || (screen[top_right] & curr_plane) || (screen[bot_left] & curr_plane) ||
+                    (screen[bot_right] & curr_plane)) {
                     registers[0xF] = 1;
                 }
-                screen[top_left] ^= bit;
-                screen[top_right] ^= bit;
-                screen[bot_left] ^= bit;
-                screen[bot_right] ^= bit;
+                screen[top_left] ^= curr_plane;
+                screen[top_right] ^= curr_plane;
+                screen[bot_left] ^= curr_plane;
+                screen[bot_right] ^= curr_plane;
             } else {
                 int screen_index = (row * WIDTH) + col;
                 if (screen[screen_index] & bit) {
                     collision = true;
                 }
-                screen[screen_index] ^= bit;
+                screen[screen_index] ^= curr_plane;
             }
         }
         if (!lores && collision) {
@@ -977,13 +984,16 @@ void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
             }
 
             uint8_t bit = (sprite_row >> pixel_index) & 1;
+
+            uint8_t curr_plane = bit_plane & (-bit);
+
             pixel_index--;
 
             int screen_index = (row * WIDTH) + col;
             if (screen[screen_index] & bit) {
                 collision = true;
             }
-            screen[screen_index] ^= bit;
+            screen[screen_index] ^= curr_plane;
         }
         if (collision) {
             registers[0xF]++;
