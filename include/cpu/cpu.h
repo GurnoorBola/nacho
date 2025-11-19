@@ -4,6 +4,7 @@
 #include <iostream>
 #include <json.hpp>
 #include <mutex>
+#include <atomic>
 
 #define MAX_PROG_SIZE 4000
 #define MAX_MEM 4096
@@ -55,14 +56,7 @@ class CPU {
 
     Config config;
 
-    // flags
-
-    // flag to stop emulation
-    bool stop = false;
-    // bool to notify if we drew
-    bool draw = false;
-    // bool if screen updated
-    bool screen_update = false;
+    
 
     // IO functionality
 
@@ -71,6 +65,9 @@ class CPU {
     // Main CHIP8 Functionality
     void emulate_cycle();
     void emulate_loop();
+    void pause();
+    void resume();
+    void step();
     void terminate();
 
     // Access functions
@@ -86,6 +83,8 @@ class CPU {
 
     // returns START_BEEP if should start sound, STOP_BEEP if it should stop or 0 if we should keep as is
     int check_should_beep();
+
+    void set_config(Config config);
 
    private:
     uint8_t memory[MAX_MEM] = {};
@@ -110,10 +109,20 @@ class CPU {
 
     std::mutex screen_mtx;
     std::mutex key_mtx;
-    std::mutex stop_mtx;
     std::mutex sound_mtx;
 
+    // flags
+
+    // flag to stop emulation
+    std::atomic<bool> stop = false;
+    // bool to notify if we drew
+    std::atomic<bool> draw = false;
+    // bool if screen updated
+    bool screen_update = false;
+    //bool if currently beeping
     bool beep = false;
+
+    std::atomic<bool> paused = false;
 
     // stack operations
     void push(uint16_t x);

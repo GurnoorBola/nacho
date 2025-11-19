@@ -30,9 +30,20 @@ void GUI::update() {
             if (ImGui::MenuItem("Quit", "Esc")) {
                 core.terminate();
             }
+            if (ImGui::MenuItem("Mode", "Ctrl+M")) {
+            };
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debugger")) {
+            if (ImGui::MenuItem("Pause", "Ctrl+P")) {
+                core.pause();
+            };
+            if (ImGui::MenuItem("Resume", "Ctrl+R")) {
+                core.resume();
+            };
+            if (ImGui::MenuItem("Step", "Ctrl+S")) {
+                core.step();
+            };
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();

@@ -156,7 +156,6 @@ uint8_t* CPU::check_screen() {
 }
 
 bool CPU::check_stop() {
-    std::lock_guard<std::mutex> lock(stop_mtx);
     return stop;
 }
 
@@ -173,6 +172,13 @@ int CPU::check_should_beep() {
     return 0;
 }
 
+//TODO maybe add mutex if needed
+void CPU::set_config(Config config) {
+    pause();
+    config = CPU::config;    
+    resume();
+}
+
 /*-----------------[Main Functionality]-----------------*/
 
 // Do one fetch-decode cycle
@@ -185,11 +191,8 @@ void CPU::emulate_cycle() {
 void CPU::emulate_loop() {
     while (1) {
         for (int i = 0; i < config.speed; i++) {
-            {
-                std::lock_guard<std::mutex> lock(stop_mtx);
-                if (stop) {
-                    break;
-                }
+            if (stop || paused) {
+                break;
             }
             if (draw) {
                 draw = false;
@@ -197,11 +200,8 @@ void CPU::emulate_loop() {
             }
             emulate_cycle();
         }
-        {
-            std::lock_guard<std::mutex> lock(stop_mtx);
-            if (stop) {
-                break;
-            }
+        if (stop) {
+            break;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
         decrementTimers();
@@ -213,6 +213,22 @@ void CPU::decrementTimers() {
     std::lock_guard<std::mutex> lock(sound_mtx);
     if (delay) delay -= 1;
     if (sound) sound -= 1;
+}
+
+//pause fetch decode loop
+void CPU::pause() {
+    paused = true;
+}
+
+//resume fetch decode loop
+void CPU::resume() {
+    paused = false;
+}
+
+//run one fetch decode cycle
+void CPU::step() {
+    if (!paused) pause();
+    emulate_cycle();
 }
 
 // set stop flag to on
