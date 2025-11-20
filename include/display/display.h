@@ -10,7 +10,7 @@
 #define DEVICE_SAMPLE_RATE 48000
 
 #define SCALE 10
-#define OFFSET 3 
+#define OFFSET 2 
 
 class Display {
    public:
@@ -18,7 +18,7 @@ class Display {
 
     void render_loop();
 
-    void update_config();
+    void update_colors();
 
     void terminate();
 

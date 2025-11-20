@@ -44,7 +44,7 @@ class CPU {
 
     struct Config {
         int system;
-        int speed;
+        int speed = 15;
 
         std::array<float, 3> onColor = {1.0f, 1.0f, 1.0f};
         std::array<float, 3> offColor = {0.0f, 0.0f, 0.0f};

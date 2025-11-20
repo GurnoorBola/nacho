@@ -3,7 +3,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-GUI::GUI(CPU& cpu) : core(cpu) {}
+GUI::GUI(CPU& cpu) : core(cpu), db("database") {}
 
 // provide openGL window context and type
 void GUI::init_gui(GLFWwindow* window) {
@@ -26,11 +26,28 @@ void GUI::update() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {
+                std::string game = "outlaw.ch8";
+                core.set_config(db.gen_config(game));
+                core.loadProgram(game);
+                color_update = true;
             };
             if (ImGui::MenuItem("Quit", "Esc")) {
                 core.terminate();
             }
-            if (ImGui::MenuItem("Mode", "Ctrl+M")) {
+            if (ImGui::BeginMenu("Mode", "Ctrl+M")) {
+                if (ImGui::MenuItem("Chip8")){
+                    core.set_config(db.gen_platform_config(CHIP8));
+                };
+                if (ImGui::MenuItem("SCHIP 1.1")){
+                    core.set_config(db.gen_platform_config(SCHIP1_1));
+                };
+                if (ImGui::MenuItem("SCHIP Modern")){
+                    core.set_config(db.gen_platform_config(SCHIP_MODERN));
+                };
+                if (ImGui::MenuItem("XO-CHIP")){
+                    core.set_config(db.gen_platform_config(XO_CHIP));
+                };
+                ImGui::EndMenu();  
             };
             ImGui::EndMenu();
         }

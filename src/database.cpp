@@ -138,3 +138,10 @@ CPU::Config Database::gen_config(std::string filename) {
 
     return config;
 }
+
+
+CPU::Config Database::gen_platform_config(int platform){
+    CPU::Config config;
+    set_platform_quirks(config, platform);
+    return config;
+}

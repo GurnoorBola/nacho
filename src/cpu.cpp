@@ -10,9 +10,6 @@
 #include <thread>
 #include <unordered_set>
 
-// temp
-#include <database/database.h>
-
 using json = nlohmann::json;
 
 const uint8_t fonts[] = {
@@ -94,15 +91,12 @@ uint16_t CPU::peek() {
 // load program into memory starting from 0x200 (512)
 // TODO hash binary check for metadata in db and apply
 int CPU::loadProgram(std::string filename) {
+    pause();
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
         return 1;
     }
-
-    // TODO remove this and move to GUI class
-    Database db("database");
-    config = db.gen_config(filename);
 
     program.seekg(0, std::ios::end);
     std::streampos fileSize = program.tellg();
@@ -124,7 +118,8 @@ int CPU::loadProgram(std::string filename) {
     printf("\n");
     fflush(stdout);
 
-    PC = 0x200;
+    PC = config.start_address;
+    resume();
     return 0;
 }
 
@@ -175,7 +170,7 @@ int CPU::check_should_beep() {
 //TODO maybe add mutex if needed
 void CPU::set_config(Config config) {
     pause();
-    config = CPU::config;    
+    CPU::config = config;    
     resume();
 }
 
@@ -418,7 +413,7 @@ void CPU::decode(uint16_t instruction) {
 
         case 0xB: {
             uint16_t addr = instruction & 0xFFF;
-            if (quirks.jump) {
+            if (config.quirks.jump) {
                 uint8_t x_reg = (instruction >> 8) & 0xF;
                 CPU::jump_plus_reg(addr, x_reg);
             } else {
@@ -438,7 +433,7 @@ void CPU::decode(uint16_t instruction) {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             uint8_t y_reg = (instruction >> 4) & 0xF;
             uint8_t height = instruction & 0xF;
-            if (height == 0x0 && !quirks.draw_zero) {
+            if (height == 0x0 && !config.quirks.draw_zero) {
                 CPU::display_16(x_reg, y_reg);
             } else {
                 CPU::display_8(x_reg, y_reg, height);
@@ -588,7 +583,7 @@ void CPU::set_reg_equals(uint8_t x_reg, uint8_t y_reg) {
 //(8XY1) set VX to or of value of VX and VY
 void CPU::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] |= registers[y_reg];
-    if (quirks.logic) {
+    if (config.quirks.logic) {
         registers[0xF] = 0;
     }
 }
@@ -596,7 +591,7 @@ void CPU::set_reg_or(uint8_t x_reg, uint8_t y_reg) {
 //(8XY2) set VX to and of value of VX and VY
 void CPU::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] &= registers[y_reg];
-    if (quirks.logic) {
+    if (config.quirks.logic) {
         registers[0xF] = 0;
     }
 }
@@ -604,7 +599,7 @@ void CPU::set_reg_and(uint8_t x_reg, uint8_t y_reg) {
 //(8XY3) set VX to xor of value of VX and VY
 void CPU::set_reg_xor(uint8_t x_reg, uint8_t y_reg) {
     registers[x_reg] ^= registers[y_reg];
-    if (quirks.logic) {
+    if (config.quirks.logic) {
         registers[0xF] = 0;
     }
 }
@@ -634,7 +629,7 @@ void CPU::set_reg_sub_Y(uint8_t x_reg, uint8_t y_reg) {
 //(8XY6) set VX to value of VY, shift VX by a bit to right and set VF to bit
 // shifted out
 void CPU::set_reg_shift_right(uint8_t x_reg, uint8_t y_reg) {
-    if (!quirks.shift) {
+    if (!config.quirks.shift) {
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = registers[x_reg] & 1;
@@ -655,7 +650,7 @@ void CPU::set_reg_sub_X(uint8_t x_reg, uint8_t y_reg) {
 //(8XYE) set VX to value of VY, shift VX by a bit to left and set VF to bit
 // shifted out
 void CPU::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
-    if (!quirks.shift) {
+    if (!config.quirks.shift) {
         registers[x_reg] = registers[y_reg];
     }
     uint8_t out = (registers[x_reg] >> 7) & 1;
@@ -707,12 +702,16 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
 
     // loop through rows and cols of the screen and update individual screen
     // pixels
-    for (int row = y; row < (y + height); row += scale) {
+    for (int r = y; r < (y + height); r += scale) {
+        int row = r;
         if (row >= HEIGHT) {
-            if (!lores) {
+            if (!lores & config.quirks.set_collisions) {
                 registers[0xF] += ((y + height) - HEIGHT);
             }
-            break;
+            if (!config.quirks.wrap) {
+                break;
+            }
+            row = r % HEIGHT;
         }
 
         bool collision = false;
@@ -720,16 +719,17 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
         uint8_t sprite_row = memory[sprite_index];
         int pixel_index = 7;
 
-        for (int col = x; col < (x + width); col += scale) {
-            if (col >= WIDTH) {
-                break;
+        for (int c = x; c < (x + width); c += scale) {
+            int col = c;
+            if (c >= WIDTH) {
+                if (!config.quirks.wrap) {
+                    break;
+                }
+                col = c % WIDTH;
             }
 
-            // current byte in the sprite 11111 1111*1*
             uint8_t bit = (sprite_row >> pixel_index) & 1;
 
-            // need to mask it to current bit_plane
-            // if we need to & bit_plane with extended version of bit
             uint8_t curr_plane = bit_plane & (-bit);
 
             pixel_index--;
@@ -760,7 +760,10 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
         }
         sprite_index++;
     }
-    if (quirks.vblank) {
+    if (!config.quirks.set_collisions){
+        registers[0xF] = registers[0xF] > 0 ? 1 : 0;
+    }
+    if (config.quirks.vblank) {
         draw = true;
     }
     screen_update = true;
@@ -840,14 +843,14 @@ void CPU::write_reg_mem(uint8_t x_reg) {
     // modern behavior doesn't
     uint16_t addr = I;
     uint16_t* addr_ptr = &addr;
-    if (!quirks.memory_leave_I_unchanged) {
+    if (!config.quirks.memory_leave_I_unchanged) {
         addr_ptr = &I;
     }
     for (uint8_t reg = 0; reg <= x_reg; reg++) {
         memory[*addr_ptr] = registers[reg];
         *addr_ptr += 1;
     }
-    if (quirks.memory_increment_by_X) {
+    if (config.quirks.memory_increment_by_X) {
         addr_ptr -= 1;
     }
 }
@@ -859,14 +862,14 @@ void CPU::read_mem_reg(uint8_t x_reg) {
     // modern behavior doesn't
     uint16_t addr = I;
     uint16_t* addr_ptr = &addr;
-    if (!quirks.memory_leave_I_unchanged) {
+    if (!config.quirks.memory_leave_I_unchanged) {
         addr_ptr = &I;
     }
     for (uint8_t reg = 0; reg <= x_reg; reg++) {
         registers[reg] = memory[*addr_ptr];
         *addr_ptr += 1;
     }
-    if (quirks.memory_increment_by_X) {
+    if (config.quirks.memory_increment_by_X) {
         addr_ptr -= 1;
     }
 }
@@ -876,7 +879,7 @@ void CPU::read_mem_reg(uint8_t x_reg) {
 //(00CN) scroll screen down by N pixels
 void CPU::scroll_down_n(uint8_t val) {
     // start from bottom and replace with n heigher if in bounds else set to 0
-    if (lores && !quirks.half_scroll_lores) {
+    if (lores && !config.quirks.half_scroll_lores) {
         val *= 2;
     }
     for (int row = HEIGHT - 1; row >= 0; row--) {
@@ -896,7 +899,7 @@ void CPU::scroll_down_n(uint8_t val) {
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
 void CPU::scroll_right_four() {
     uint8_t val = 4;
-    if (lores && !quirks.half_scroll_lores) {
+    if (lores && !config.quirks.half_scroll_lores) {
         val *= 2;
     }
     // traverse right to left top to down
@@ -917,7 +920,7 @@ void CPU::scroll_right_four() {
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
 void CPU::scroll_Left_four() {
     uint8_t val = 4;
-    if (lores && !quirks.half_scroll_lores) {
+    if (lores && !config.quirks.half_scroll_lores) {
         val *= 2;
     }
     // traverse left to right top to down
@@ -945,7 +948,7 @@ void CPU::exit() {
 //(00FE) switch to lores (64x32) mode
 void CPU::switch_lores() {
     // SCHIP Quirk: original didnt clear screen
-    if (quirks.clean_screen) {
+    if (config.quirks.clean_screen) {
         clear();
     }
     lores = true;
@@ -954,7 +957,7 @@ void CPU::switch_lores() {
 //(00FF) switch to hires (128x64) mode
 void CPU::switch_hires() {
     // SCHIP Quirk: original didnt clear screen
-    if (quirks.clean_screen) {
+    if (config.quirks.clean_screen) {
         clear();
     }
     lores = false;
@@ -969,8 +972,9 @@ void CPU::jump_plus_reg(uint16_t addr, uint8_t x_reg) {
 
 //(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
 void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
+    //TODO add support for lores drawing of 16x16 sprites
     std::lock_guard<std::mutex> lock(screen_mtx);
-    if (quirks.lores_8x16 && lores) {
+    if (config.quirks.lores_8x16 && lores) {
         display_8(x_reg, y_reg, 0xF);
         return;
     }
@@ -982,21 +986,30 @@ void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
 
     // loop through rows and cols of the screen and update individual screen
     // pixels
-    for (int row = y; row < (y + 16); row++) {
+    for (int r = y; r < (y + 16); r++) {
+        int row = r;
         if (row >= HEIGHT) {
-            registers[0xF] += ((y + 16) - HEIGHT);
-            break;
+            if (!lores & config.quirks.set_collisions) {
+                registers[0xF] += ((y + 16) - HEIGHT);
+            }
+            if (!config.quirks.wrap) {
+                break;
+            }
+            row = r % HEIGHT;
         }
-
         bool collision = false;
 
         uint16_t sprite_row = (memory[sprite_index] << 8) + memory[sprite_index + 1];
 
         int pixel_index = 15;
 
-        for (int col = x; col < (x + 16); col++) {
-            if (col >= WIDTH) {
-                break;
+        for (int c = x; c < (x + 16); c++) {
+            int col = c;
+            if (c >= WIDTH) {
+                if (!config.quirks.wrap) {
+                    break;
+                }
+                col = c % WIDTH;
             }
 
             uint8_t bit = (sprite_row >> pixel_index) & 1;

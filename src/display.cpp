@@ -22,6 +22,7 @@ void Display::init_display() {
     }
 
     glfwSetWindowAspectRatio(window, WIDTH, (HEIGHT+OFFSET));
+    glfwSetWindowSizeLimits(window, WIDTH * SCALE, (HEIGHT + OFFSET) * SCALE, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     glfwMakeContextCurrent(window);
     glfwSetWindowUserPointer(window, this);
@@ -94,6 +95,11 @@ void Display::render_loop() {
             break;
         }
 
+        if (gui.color_update) {
+            update_colors();
+            gui.color_update = false;
+        }
+
         uint8_t* screen = core.check_screen();
         if (screen != NULL) {
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_BYTE, screen);
@@ -133,12 +139,12 @@ void Display::render_loop() {
     }
 }
 
-void Display::update_config() {
+void Display::update_colors() {
     shader.use();
     // set on and off color uniforms
     shader.setVec3fv("onColor", core.config.onColor.data());
     shader.setVec3fv("offColor", core.config.offColor.data());
-    glClearColor(core.config.offColor.data()[0], core.config.offColor.data()[1], core.config.offColor.data()[2], 1.0f);
+    // glClearColor(core.config.offColor.data()[0], core.config.offColor.data()[1], core.config.offColor.data()[2], 1.0f);
 }
 
 void Display::terminate() {
