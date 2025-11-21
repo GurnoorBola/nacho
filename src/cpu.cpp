@@ -84,18 +84,14 @@ uint16_t CPU::peek() {
 }
 
 /*-----------------[IO Functions]-----------------*/
-// TODO look at filename and determine quirks using game database
-// if failure game not compatible with emu
-// called after loading program into memory
 
 // load program into memory starting from 0x200 (512)
-// TODO hash binary check for metadata in db and apply
 int CPU::loadProgram(std::string filename) {
     pause();
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
-        return 1;
+        return -1;
     }
 
     program.seekg(0, std::ios::end);
@@ -104,14 +100,12 @@ int CPU::loadProgram(std::string filename) {
 
     if (fileSize > MAX_PROG_SIZE) {
         std::cerr << "File size exceeds max program size" << std::endl;
-        return 2;
+        return -2;
     }
-
-    std::cout << config.speed << std::endl;
 
     program.read(reinterpret_cast<char*>(memory + config.start_address), fileSize);
 
-    for (int i = 512; i < 512 + (int)fileSize; i++) {
+    for (int i = config.start_address; i < config.start_address + (int)fileSize; i++) {
         printf("%02x ", memory[i]);
         fflush(stdout);
     }
@@ -119,8 +113,19 @@ int CPU::loadProgram(std::string filename) {
     fflush(stdout);
 
     PC = config.start_address;
-    resume();
-    return 0;
+    return fileSize;
+}
+
+std::string CPU::hash_bin(int fileSize){
+    // compute hash
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    SHA1(memory + config.start_address, fileSize, hash);
+
+    std::ostringstream oss;
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    return oss.str();
 }
 
 /*-----------------[Access Functions]-----------------*/
@@ -171,7 +176,6 @@ int CPU::check_should_beep() {
 void CPU::set_config(Config config) {
     pause();
     CPU::config = config;    
-    resume();
 }
 
 /*-----------------[Main Functionality]-----------------*/
@@ -185,15 +189,17 @@ void CPU::emulate_cycle() {
 // Start emulation loop running at speed instructions per cycle
 void CPU::emulate_loop() {
     while (1) {
-        for (int i = 0; i < config.speed; i++) {
-            if (stop || paused) {
-                break;
+        if (!paused) {
+            for (int i = 0; i < config.speed; i++) {
+                if (stop) {
+                    break;
+                }
+                if (draw) {
+                    draw = false;
+                    break;
+                }
+                emulate_cycle();
             }
-            if (draw) {
-                draw = false;
-                break;
-            }
-            emulate_cycle();
         }
         if (stop) {
             break;
@@ -270,6 +276,12 @@ void CPU::decode(uint16_t instruction) {
                     break;
                 }
 
+                case 0xD: {
+                    uint8_t val = instruction & 0xF;
+                    CPU::scroll_up_n(val);
+                    break;
+                }
+
                 case 0xF: {
                     switch (instruction & 0xF) {
                         case 0xB:
@@ -333,7 +345,19 @@ void CPU::decode(uint16_t instruction) {
         case 0x5: {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             uint8_t y_reg = (instruction >> 4) & 0xF;
-            CPU::skip_reg_equals(x_reg, y_reg);
+            switch (instruction & 0xF) {
+                case 0x0:
+                    CPU::skip_reg_equals(x_reg, y_reg);
+                    break;
+                
+                case 0x2:
+                    CPU::write_reg_mem_range(x_reg, y_reg);
+                    break;
+                
+                case 0x3:
+                    CPU::read_reg_mem_range(x_reg, y_reg);
+                    break;
+            }
             break;
         }
 
@@ -461,6 +485,18 @@ void CPU::decode(uint16_t instruction) {
         case 0xF: {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             switch (instruction & 0xFF) {
+                case 0x00:
+                    CPU::set_index_long();
+                    break;
+                
+                case 0x01:
+                    CPU::select_plane(x_reg);
+                    break;
+                
+                case 0x02:
+                    CPU::set_waveform();
+                    break;
+
                 case 0x07:
                     CPU::set_reg_delay(x_reg);
                     break;
@@ -487,6 +523,10 @@ void CPU::decode(uint16_t instruction) {
 
                 case 0x33:
                     CPU::set_reg_BCD(x_reg);
+                    break;
+
+                case 0x3A:
+                    CPU::set_pitch(x_reg);
                     break;
 
                 case 0x55:
@@ -705,7 +745,7 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
     for (int r = y; r < (y + height); r += scale) {
         int row = r;
         if (row >= HEIGHT) {
-            if (!lores & config.quirks.set_collisions) {
+            if (!lores && config.quirks.set_collisions) {
                 registers[0xF] += ((y + height) - HEIGHT);
             }
             if (!config.quirks.wrap) {
@@ -749,7 +789,7 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
                 screen[bot_right] ^= curr_plane;
             } else {
                 int screen_index = (row * WIDTH) + col;
-                if (screen[screen_index] & bit) {
+                if (screen[screen_index] & curr_plane) {
                     collision = true;
                 }
                 screen[screen_index] ^= curr_plane;
@@ -989,7 +1029,7 @@ void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
     for (int r = y; r < (y + 16); r++) {
         int row = r;
         if (row >= HEIGHT) {
-            if (!lores & config.quirks.set_collisions) {
+            if (!lores && config.quirks.set_collisions) {
                 registers[0xF] += ((y + 16) - HEIGHT);
             }
             if (!config.quirks.wrap) {
@@ -1019,7 +1059,7 @@ void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
             pixel_index--;
 
             int screen_index = (row * WIDTH) + col;
-            if (screen[screen_index] & bit) {
+            if (screen[screen_index] & curr_plane) {
                 collision = true;
             }
             screen[screen_index] ^= curr_plane;
@@ -1080,7 +1120,7 @@ void CPU::scroll_up_n(uint8_t val) {
 void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     uint16_t addr = I;
 
-    int8_t inc = x_reg >= y_reg ? 1 : -1;
+    int8_t inc = x_reg <= y_reg ? 1 : -1;
 
     for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
         memory[addr] = registers[reg];
@@ -1094,7 +1134,7 @@ void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
 void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     uint16_t addr = I;
 
-    int8_t inc = x_reg >= y_reg ? 1 : -1;
+    int8_t inc = x_reg <= y_reg ? 1 : -1;
 
     for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
         registers[reg] = memory[addr];
@@ -1110,16 +1150,16 @@ void CPU::set_index_long() {
 }
 
 // FX01 selects the bit plane VX to use for drawing and scrolling
-void CPU::select_plane(uint8_t x_reg) {
-    bit_plane = registers[x_reg];
+void CPU::select_plane(uint8_t val) {
+    bit_plane = val;
 }
 
 // F002 load 16 byte audio pattern pointed by I into audio pattern buffer
-void set_waveform() {
+void CPU::set_waveform() {
     // TODO implement this
 }
 
 // FX3A set playback rate to 4000*2^((vX-64)/48)Hz
-void set_pitch() {
+void CPU::set_pitch(uint8_t x_reg) {
     // TODO implement this
 }

@@ -7,7 +7,7 @@ class Database {
    public:
     Database(std::string dat_dir);
 
-    CPU::Config gen_config(std::string filename);
+    CPU::Config gen_config(std::string hash);
     CPU::Config gen_platform_config(int platform);
 
    private:

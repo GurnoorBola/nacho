@@ -26,9 +26,12 @@ void GUI::update() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {
-                std::string game = "outlaw.ch8";
-                core.set_config(db.gen_config(game));
-                core.loadProgram(game);
+                std::string game = "slipperyslope.ch8";
+                int fileSize = core.loadProgram(game);
+                CPU::Config config = db.gen_config(core.hash_bin(fileSize));
+                core.set_config(config);
+                //reload if not default start addr
+                if (config.start_address != 0x200) core.loadProgram(game);
                 color_update = true;
             };
             if (ImGui::MenuItem("Quit", "Esc")) {

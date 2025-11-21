@@ -6,8 +6,8 @@
 #include <mutex>
 #include <atomic>
 
-#define MAX_PROG_SIZE 4000
-#define MAX_MEM 4096
+#define MAX_PROG_SIZE 63488
+#define MAX_MEM 64000 
 #define MAX_STACK 16
 #define WIDTH 128
 #define HEIGHT 64
@@ -37,16 +37,18 @@ class CPU {
         bool logic = false;
         bool draw_zero = false;
         bool half_scroll_lores = false;
-        bool clean_screen = false;
+        bool clean_screen = true;
         bool set_collisions = false;
         bool lores_8x16 = false;
     };
 
     struct Config {
-        int system;
-        int speed = 15;
+        int system = SCHIP_MODERN;
+        int speed = 12;
 
-        std::array<float, 3> onColor = {1.0f, 1.0f, 1.0f};
+        std::array<float, 3> baseColor1 = {1.0f, 1.0f, 1.0f};
+        std::array<float, 3> baseColor2 = {0.8f, 0.8f, 0.8f};
+        std::array<float, 3> highlight = {0.5f, 0.5f, 0.5f};
         std::array<float, 3> offColor = {0.0f, 0.0f, 0.0f};
 
         uint16_t start_address = 0x200;
@@ -61,6 +63,7 @@ class CPU {
     // IO functionality
 
     int loadProgram(std::string filename);
+    std::string hash_bin(int fileSize);
 
     // Main CHIP8 Functionality
     void emulate_cycle();
@@ -232,7 +235,7 @@ class CPU {
                                                             // register y X is not necessarily less than Y
     void set_index_long();  // FOOO NNNN read the next two bytes into I
                             // increment to start of next instruction skipping NNNN
-    void select_plane(uint8_t x_reg);  // FX01 select the bit plane to use for drawing and scrolling
+    void select_plane(uint8_t val);  // FX01 select the bit plane to use for drawing and scrolling
     void set_waveform();               // F002 load 16 byte audio pattern pointed by I into audio pattern buffer
-    void set_pitch();                  // FX3A set playback rate to 4000*2^((vX-64)/48)Hz
+    void set_pitch(uint8_t x_reg);                  // FX3A set playback rate to 4000*2^((vX-64)/48)Hz
 };

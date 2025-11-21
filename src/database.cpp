@@ -7,7 +7,8 @@
 
 std::unordered_map<std::string, int> supported = {{"originalChip8", CHIP8},
                                                   {"modernChip8", SCHIP_MODERN},
-                                                  {"superchip", SCHIP1_1}};
+                                                  {"superchip", SCHIP1_1},
+                                                  {"xochip", XO_CHIP}};
 
 Database::Database(std::string data_dir) {
     // open files and parse into json objects
@@ -21,35 +22,6 @@ Database::Database(std::string data_dir) {
     quirk_list = json::parse(quirks_f);
     sha1_hashes = json::parse(sha1_hashes_f);
 };
-
-// reads in bytes and generates the hash of the bytes
-std::string hash_bin(std::string filename) {
-    std::ifstream program("games/" + filename, std::ios::binary);
-    if (!program.is_open()) {
-        std::cerr << "Program failed to open" << std::endl;
-        return "";
-    }
-    program.seekg(0, std::ios::end);
-    std::streampos fileSize = program.tellg();
-    program.seekg(0, std::ios::beg);
-
-    if (fileSize > MAX_PROG_SIZE) {
-        std::cerr << "File size exceeds max program size" << std::endl;
-        return "";
-    }
-    uint8_t bytes[MAX_PROG_SIZE];
-    program.read(reinterpret_cast<char*>(bytes), fileSize);
-
-    // compute hash
-    unsigned char hash[SHA_DIGEST_LENGTH];
-    SHA1(bytes, fileSize, hash);
-
-    std::ostringstream oss;
-    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
-    }
-    return oss.str();
-}
 
 void Database::set_platform_quirks(CPU::Config& config, int platform) {
     // set platform defaults
@@ -83,7 +55,11 @@ void Database::set_game_quirks(CPU::Config& config, json& game_rom) {
         std::vector<std::string> pixels = colors.value("pixels", std::vector<std::string>());
         if (!pixels.empty()) {
             config.offColor = hex_to_rgb(pixels[0]);
-            config.onColor = hex_to_rgb(pixels[1]);
+            config.baseColor1 = hex_to_rgb(pixels[1]);
+            if (pixels.size() > 2) {
+                config.baseColor2 = hex_to_rgb(pixels[2]);
+                config.highlight = hex_to_rgb(pixels[3]);
+            }
         }
     }
 }
@@ -99,10 +75,9 @@ std::array<float, 3> Database::hex_to_rgb(std::string hex) {
 
 // generates a configuration and sets internal variables to store quick info related to the game
 // will choose best system to emulate automatically.
-CPU::Config Database::gen_config(std::string filename) {
-    CPU::Config config;
-    std::string hash = hash_bin(filename);
+CPU::Config Database::gen_config(std::string hash) {
     std::cout << hash << std::endl;
+    CPU::Config config;
 
     game_index = sha1_hashes.value(hash, -1);
     if (game_index == -1) {
