@@ -27,7 +27,7 @@ void GUI::update() {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {
                 // std::string game = "color-scroll-test-xochip.xo8";
-                std::string game = "garlicscape.ch8";
+                std::string game = "t8nks.ch8";
                 int fileSize = core.loadProgram(game);
                 CPU::Config config = db.gen_config(core.hash_bin(fileSize));
                 core.set_config(config);

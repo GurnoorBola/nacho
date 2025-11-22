@@ -254,7 +254,6 @@ uint16_t CPU::fetch() {
     uint16_t mask = 0xFFFF;
     mask &= ((memory[PC] << 8) + (memory[PC + 1]));
     PC += 2;
-    // std::cout << std::hex << mask << std::endl;
     return mask;
 }
 
@@ -1058,7 +1057,9 @@ void CPU::exit() {
 void CPU::switch_lores() {
     // SCHIP Quirk: original didnt clear screen
     if (config.quirks.clean_screen) {
-        clear();
+        std::lock_guard<std::mutex> lock(screen_mtx);
+        std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+        screen_update = true;
     }
     lores = true;
 }
@@ -1067,7 +1068,9 @@ void CPU::switch_lores() {
 void CPU::switch_hires() {
     // SCHIP Quirk: original didnt clear screen
     if (config.quirks.clean_screen) {
-        clear();
+        std::lock_guard<std::mutex> lock(screen_mtx);
+        std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+        screen_update = true;
     }
     lores = false;
 }
