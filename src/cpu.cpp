@@ -159,6 +159,14 @@ bool CPU::check_stop() {
     return stop;
 }
 
+bool CPU::check_color() {
+    if (color_update) {
+        color_update = false;
+        return true;
+    }
+    return false;
+}
+
 int CPU::check_should_beep() {
     std::lock_guard<std::mutex> lock(sound_mtx);
     if (!beep && sound > 0) {
@@ -172,10 +180,10 @@ int CPU::check_should_beep() {
     return 0;
 }
 
-//TODO maybe add mutex if needed
 void CPU::set_config(Config config) {
     pause();
     CPU::config = config;    
+    color_update = true;
 }
 
 /*-----------------[Main Functionality]-----------------*/
@@ -246,6 +254,7 @@ uint16_t CPU::fetch() {
     uint16_t mask = 0xFFFF;
     mask &= ((memory[PC] << 8) + (memory[PC + 1]));
     PC += 2;
+    // std::cout << std::hex << mask << std::endl;
     return mask;
 }
 
@@ -457,11 +466,35 @@ void CPU::decode(uint16_t instruction) {
             uint8_t x_reg = (instruction >> 8) & 0xF;
             uint8_t y_reg = (instruction >> 4) & 0xF;
             uint8_t height = instruction & 0xF;
-            if (height == 0x0 && !config.quirks.draw_zero) {
-                CPU::display_16(x_reg, y_reg);
-            } else {
-                CPU::display_8(x_reg, y_reg, height);
+            uint8_t width = 8;
+            registers[0xF] = 0;
+            //exit early if we are a system that is able to draw 0 height sprite
+            if (height == 0) {
+                if (config.quirks.draw_zero) {
+                    if (config.quirks.vblank) draw = true;
+                    return;
+                }
+                if (!(lores && config.quirks.lores_8x16)){
+                    width = 16;
+                }
+                height = 16;
             }
+
+            uint16_t mem_index = I;
+            //for every bit in bit_plane (4) we check if the bit is on and draw with that plane if it is
+            for (int i = 0; i < 4; i++) {
+                uint8_t plane = bit_plane & (1 << i);
+                if (plane) {
+                    display(mem_index, plane, x_reg, y_reg, width, height);
+                    mem_index += height * (width == 16 ? 2 : 1);
+                }
+            }
+
+            // if (height == 0x0 && !config.quirks.draw_zero) {
+            //     CPU::display_16(x_reg, y_reg);
+            // } else {
+            //     CPU::display_8(x_reg, y_reg, height);
+            // }
             break;
         }
 
@@ -564,7 +597,12 @@ void CPU::decode(uint16_t instruction) {
 //(00E0) clear screen
 void CPU::clear() {
     std::lock_guard<std::mutex> lock(screen_mtx);
-    std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+    for (int r=0; r < HEIGHT; r++) {
+        for (int c=0; c < WIDTH; c++) {
+            int screen_index = (r * WIDTH) + c;
+            screen[screen_index] &= ~bit_plane;
+        }
+    }
     screen_update = true;
 }
 
@@ -587,21 +625,30 @@ void CPU::start_subroutine(uint16_t addr) {
 //(3XNN) skip if VX == NN
 void CPU::skip_equals(uint8_t x_reg, uint8_t val) {
     if (registers[x_reg] == val) {
-        PC += 2;
+        uint16_t opcode = fetch();
+        if (opcode == 0xF000){
+            fetch();
+        }
     }
 }
 
 //(4XNN) skip if VX != NN
 void CPU::skip_not_equals(uint8_t x_reg, uint8_t val) {
     if (registers[x_reg] != val) {
-        PC += 2;
+        uint16_t opcode = fetch();
+        if (opcode == 0xF000){
+            fetch();
+        }
     }
 }
 
 //(5XY0) skip if VX == VY
 void CPU::skip_reg_equals(uint8_t x_reg, uint8_t y_reg) {
     if (registers[x_reg] == registers[y_reg]) {
-        PC += 2;
+        uint16_t opcode = fetch();
+        if (opcode == 0xF000){
+            fetch();
+        }
     }
 }
 
@@ -701,7 +748,10 @@ void CPU::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
 //(9XY0) skip if VX != VY
 void CPU::skip_reg_not_equals(uint8_t x_reg, uint8_t y_reg) {
     if (registers[x_reg] != registers[y_reg]) {
-        PC += 2;
+        uint16_t opcode = fetch();
+        if (opcode == 0xF000){
+            fetch();
+        }
     }
 }
 
@@ -721,43 +771,53 @@ void CPU::set_reg_rand(uint8_t x_reg, uint8_t val) {
     registers[x_reg] = res & val;
 }
 
-//(DXYN) draw sprite pointed at by I at (V[X], V[Y]) with height N
-void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
+
+//loop through the first four bits of bit_plane and draw with that plane if there is a 1 there
+//TODO (DXYN) new version returns last memory index it drew from 
+void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_reg, uint8_t width, uint8_t height) {
     std::lock_guard<std::mutex> lock(screen_mtx);
-    registers[0xF] = 0;
+    int scale = lores ? 2 : 1; //multiply everything by two if we in lores
 
-    uint16_t sprite_index = I;
-
-    int scale = 1;
-    if (lores) {
-        scale = 2;
-    }
-    uint8_t x = registers[x_reg] * scale;
-    uint8_t y = registers[y_reg] * scale;
-    x %= WIDTH;
-    y %= HEIGHT;
-
+    width *= scale;
     height *= scale;
-    uint8_t width = 8 * scale;
 
-    // loop through rows and cols of the screen and update individual screen
-    // pixels
+    uint8_t x = (registers[x_reg] * scale) % WIDTH;
+    uint8_t y = (registers[y_reg] * scale) % HEIGHT;
+
     for (int r = y; r < (y + height); r += scale) {
         int row = r;
+
+        //we went off of screen
         if (row >= HEIGHT) {
-            if (!lores && config.quirks.set_collisions) {
+            //if we are on a system that sets number of collisions set it
+            if (config.quirks.set_collisions && !lores) {
                 registers[0xF] += ((y + height) - HEIGHT);
             }
+            //if we dont wrap we are done 
             if (!config.quirks.wrap) {
                 break;
             }
+            //otherwise wrap around and continue
             row = r % HEIGHT;
         }
 
+        //flag for if we got a collision in this row
         bool collision = false;
 
-        uint8_t sprite_row = memory[sprite_index];
-        int pixel_index = 7;
+        //index to select individual bits from the sprite
+        int sprite_row_index;
+
+        //if our width is 16 * scale we extract two bytes otherwise we just extract one 
+        uint16_t sprite_row;
+        if (width == 16 * scale) {
+            sprite_row = (memory[mem_index] << 8) + memory[mem_index + 1];
+            mem_index += 2;
+            sprite_row_index = 15;
+        } else {
+            sprite_row = memory[mem_index];
+            mem_index += 1;
+            sprite_row_index = 7;
+        }
 
         for (int c = x; c < (x + width); c += scale) {
             int col = c;
@@ -767,43 +827,46 @@ void CPU::display_8(uint8_t x_reg, uint8_t y_reg, uint8_t height) {
                 }
                 col = c % WIDTH;
             }
+            
+            uint8_t bit = (sprite_row >> sprite_row_index) & 1;
+            sprite_row_index -= 1;
+            //if bit is 0 we can skip there is nothing to draw
+            if (bit == 0) continue;
+            uint8_t draw_mask = plane;
 
-            uint8_t bit = (sprite_row >> pixel_index) & 1;
-
-            uint8_t curr_plane = bit_plane & (-bit);
-
-            pixel_index--;
-
+            //if we are in lores mode draw a 2x2 otherwise draw pixel by pixel
             if (lores) {
                 int top_left = (row * WIDTH) + col;
                 int top_right = (row * WIDTH) + col + 1;
                 int bot_left = ((row + 1) * WIDTH) + col;
                 int bot_right = ((row + 1) * WIDTH) + col + 1;
-                if ((screen[top_left] & curr_plane) || (screen[top_right] & curr_plane) ||
-                    (screen[bot_left] & curr_plane) || (screen[bot_right] & curr_plane)) {
-                    registers[0xF] = 1;
-                }
-                screen[top_left] ^= curr_plane;
-                screen[top_right] ^= curr_plane;
-                screen[bot_left] ^= curr_plane;
-                screen[bot_right] ^= curr_plane;
-            } else {
-                int screen_index = (row * WIDTH) + col;
-                if (screen[screen_index] & curr_plane) {
+                if ((screen[top_left] & draw_mask) || (screen[top_right] & draw_mask) ||
+                    (screen[bot_left] & draw_mask) || (screen[bot_right] & draw_mask)) {
                     collision = true;
                 }
-                screen[screen_index] ^= curr_plane;
+                screen[top_left] ^= draw_mask;
+                screen[top_right] ^= draw_mask;
+                screen[bot_left] ^= draw_mask;
+                screen[bot_right] ^= draw_mask;
+            } else {
+                int screen_index = (row * WIDTH) + col;
+                if (screen[screen_index] & draw_mask) {
+                    collision = true;
+                }
+                screen[screen_index] ^= draw_mask;
             }
         }
-        if (!lores && collision) {
-            registers[0xF]++;
+        //if there is a collision either increase the vf register by 1 if we are on a system that counts them
+        //otherwise just set it to 1
+        if (collision) {
+            if (config.quirks.set_collisions && !lores) {
+                registers[0xF] += 1;
+            } else {
+                registers[0xF] = 1;
+            }
         }
-        sprite_index++;
     }
-    if (!config.quirks.set_collisions){
-        registers[0xF] = registers[0xF] > 0 ? 1 : 0;
-    }
-    if (config.quirks.vblank) {
+    if (lores && config.quirks.vblank) {
         draw = true;
     }
     screen_update = true;
@@ -814,7 +877,10 @@ void CPU::skip_key_pressed(uint8_t x_reg) {
     std::lock_guard<std::mutex> lock(key_mtx);
     uint8_t key = registers[x_reg] & 0xF;
     if ((keys >> key) & 1) {
-        PC += 2;
+        uint16_t opcode = fetch();
+        if (opcode == 0xF000){
+            fetch();
+        }
     }
 }
 
@@ -823,7 +889,10 @@ void CPU::skip_key_not_pressed(uint8_t x_reg) {
     std::lock_guard<std::mutex> lock(key_mtx);
     uint8_t key = registers[x_reg] & 0xF;
     if (!((keys >> key) & 1)) {
-        PC += 2;
+        uint16_t opcode = fetch();
+        if (opcode == 0xF000){
+            fetch();
+        }
     }
 }
 
@@ -918,6 +987,7 @@ void CPU::read_mem_reg(uint8_t x_reg) {
 
 //(00CN) scroll screen down by N pixels
 void CPU::scroll_down_n(uint8_t val) {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     // start from bottom and replace with n heigher if in bounds else set to 0
     if (lores && !config.quirks.half_scroll_lores) {
         val *= 2;
@@ -925,19 +995,19 @@ void CPU::scroll_down_n(uint8_t val) {
     for (int row = HEIGHT - 1; row >= 0; row--) {
         for (int col = WIDTH - 1; col >= 0; col--) {
             int index = (row * WIDTH) + col;
+            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
             if ((row - val) >= 0) {
                 int replace_index = ((row - val) * WIDTH) + col;
-                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
-            } else {
-                screen[index] = 0;
             }
         }
     }
+    screen_update = true;
 }
 
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
 void CPU::scroll_right_four() {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     uint8_t val = 4;
     if (lores && !config.quirks.half_scroll_lores) {
         val *= 2;
@@ -946,19 +1016,19 @@ void CPU::scroll_right_four() {
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = WIDTH - 1; col >= 0; col--) {
             int index = (row * WIDTH) + col;
+            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
             if ((col - val) >= 0) {
                 int replace_index = (row * WIDTH) + (col - val);
-                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
-            } else {
-                screen[index] = 0;
-            }
+            } 
         }
     }
+    screen_update = true;
 }
 
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
 void CPU::scroll_Left_four() {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     uint8_t val = 4;
     if (lores && !config.quirks.half_scroll_lores) {
         val *= 2;
@@ -967,15 +1037,14 @@ void CPU::scroll_Left_four() {
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = 0; col < WIDTH; col++) {
             int index = (row * WIDTH) + col;
+            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
             if ((col + val) < WIDTH) {
                 int replace_index = (row * WIDTH) + (col + val);
-                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
-            } else {
-                screen[index] = 0;
             }
-        }
+       }
     }
+    screen_update = true;
 }
 
 // TODO make this function return to start screen not kill render loop
@@ -1010,68 +1079,6 @@ void CPU::jump_plus_reg(uint16_t addr, uint8_t x_reg) {
     PC = addr + val;
 }
 
-//(DXY0) draw (16x16) sprite at V[X], V[Y] starting from I
-void CPU::display_16(uint8_t x_reg, uint8_t y_reg) {
-    //TODO add support for lores drawing of 16x16 sprites
-    std::lock_guard<std::mutex> lock(screen_mtx);
-    if (config.quirks.lores_8x16 && lores) {
-        display_8(x_reg, y_reg, 0xF);
-        return;
-    }
-
-    registers[0xF] = 0;
-    uint16_t sprite_index = I;
-    uint8_t x = registers[x_reg] % WIDTH;
-    uint8_t y = registers[y_reg] % HEIGHT;
-
-    // loop through rows and cols of the screen and update individual screen
-    // pixels
-    for (int r = y; r < (y + 16); r++) {
-        int row = r;
-        if (row >= HEIGHT) {
-            if (!lores && config.quirks.set_collisions) {
-                registers[0xF] += ((y + 16) - HEIGHT);
-            }
-            if (!config.quirks.wrap) {
-                break;
-            }
-            row = r % HEIGHT;
-        }
-        bool collision = false;
-
-        uint16_t sprite_row = (memory[sprite_index] << 8) + memory[sprite_index + 1];
-
-        int pixel_index = 15;
-
-        for (int c = x; c < (x + 16); c++) {
-            int col = c;
-            if (c >= WIDTH) {
-                if (!config.quirks.wrap) {
-                    break;
-                }
-                col = c % WIDTH;
-            }
-
-            uint8_t bit = (sprite_row >> pixel_index) & 1;
-
-            uint8_t curr_plane = bit_plane & (-bit);
-
-            pixel_index--;
-
-            int screen_index = (row * WIDTH) + col;
-            if (screen[screen_index] & curr_plane) {
-                collision = true;
-            }
-            screen[screen_index] ^= curr_plane;
-        }
-        if (collision) {
-            registers[0xF]++;
-        }
-        sprite_index += 2;
-    }
-    screen_update = true;
-}
-
 //(FX30) set I to big font (10 line) for digit in lowest nibble of V[X]
 void CPU::set_index_font_big(uint8_t x_reg) {
     uint8_t ch = registers[x_reg] & 0xF;
@@ -1096,6 +1103,7 @@ void CPU::read_flags_storage(uint8_t x_reg) {
 
 // 00DN scroll screen up by N pixels
 void CPU::scroll_up_n(uint8_t val) {
+    std::lock_guard<std::mutex> lock(screen_mtx);
     // scroll only selected bit planes
     //  start from bottom and replace with n lower if in bounds else set to 0
     if (lores) {
@@ -1104,43 +1112,38 @@ void CPU::scroll_up_n(uint8_t val) {
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = 0; col < WIDTH; col++) {
             int index = (row * WIDTH) + col;
+            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
             if ((row + val) < HEIGHT) {
                 int replace_index = ((row + val) * WIDTH) + col;
-                screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
-            } else {
-                screen[index] = 0;
             }
         }
     }
+    screen_update = true;
 }
 
 // TODO recheck implementation if something breaking
 // 5XY2 write memory starting from register X to register y
 void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
-    uint16_t addr = I;
-
     int8_t inc = x_reg <= y_reg ? 1 : -1;
 
     for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
-        memory[addr] = registers[reg];
-        addr += 1;
+        memory[I] = registers[reg];
+        I += 1;
     }
-    memory[addr] = registers[y_reg];
+    memory[I] = registers[y_reg];
 }
 
 // TODO recheck implementation if something breaking
 // 5XY2 read memory starting at I into register X to register y
 void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
-    uint16_t addr = I;
-
     int8_t inc = x_reg <= y_reg ? 1 : -1;
 
     for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
-        registers[reg] = memory[addr];
-        addr += 1;
+        registers[reg] = memory[I];
+        I += 1;
     }
-    registers[y_reg] = memory[addr];
+    registers[y_reg] = memory[I];
 }
 
 // TODO test this if things are breaking

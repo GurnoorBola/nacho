@@ -97,9 +97,8 @@ void Display::render_loop() {
             break;
         }
 
-        if (gui.color_update) {
+        if (core.check_color()) {
             update_colors();
-            gui.color_update = false;
         }
 
         uint8_t* screen = core.check_screen();

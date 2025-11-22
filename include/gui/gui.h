@@ -6,8 +6,6 @@ class GUI {
    public:
     GUI(CPU& cpu);
 
-    std::atomic<bool> color_update = false;
-
     void init_gui(GLFWwindow* window);
     void update();
     void render();

@@ -83,6 +83,7 @@ class CPU {
     uint8_t* check_screen();
 
     bool check_stop();
+    bool check_color();
 
     // returns START_BEEP if should start sound, STOP_BEEP if it should stop or 0 if we should keep as is
     int check_should_beep();
@@ -124,6 +125,8 @@ class CPU {
     bool screen_update = false;
     //bool if currently beeping
     bool beep = false;
+    //if colors updated in config
+    std::atomic<bool> color_update = false;
 
     std::atomic<bool> paused = false;
 
@@ -178,6 +181,9 @@ class CPU {
                       uint8_t val);  // CXNN set VX to random byte (bitwise AND) NN
     void display_8(uint8_t x_reg, uint8_t y_reg,
                    uint8_t height);            // DXYH draw character at x, y
+    void display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, 
+                uint8_t y_reg, uint8_t width, uint8_t height);                     // TODO DXYH but with specifier for plane, 
+                                                                    // if height is 0 we draw 16 x 16 otherise draw 8 x height 
     void skip_key_pressed(uint8_t x_reg);      // EX9E skip if key represented by VX's
                                                // lower nibble is pressed
     void skip_key_not_pressed(uint8_t x_reg);  // EXA1 skip if key represented by
