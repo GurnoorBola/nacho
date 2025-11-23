@@ -6,8 +6,7 @@
 #include <mutex>
 #include <atomic>
 
-#define MAX_PROG_SIZE 63488
-#define MAX_MEM 64000 
+#define MAX_MEM 65536 
 #define MAX_STACK 16
 #define WIDTH 128
 #define HEIGHT 64
@@ -19,6 +18,9 @@
 
 #define START_BEEP 1
 #define STOP_BEEP 2
+
+#define NO_PRESS 0
+#define NO_RELEASE -1
 
 class CPU {
    public:
@@ -90,6 +92,8 @@ class CPU {
 
     void set_config(Config config);
 
+    void dump_reg();
+
    private:
     uint8_t memory[MAX_MEM] = {};
     uint8_t screen[WIDTH * HEIGHT] = {};
@@ -106,7 +110,11 @@ class CPU {
 
     uint8_t bit_plane = 0b01;
 
-    uint8_t pressed = 0xFF;
+    //keys currently pressed
+    uint16_t pressed = NO_PRESS;
+    //last released
+    uint8_t released = NO_RELEASE;
+
     bool waiting = false;
 
     Quirks quirks;

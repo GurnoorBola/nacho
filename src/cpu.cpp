@@ -98,7 +98,12 @@ int CPU::loadProgram(std::string filename) {
     std::streampos fileSize = program.tellg();
     program.seekg(0, std::ios::beg);
 
-    if (fileSize > MAX_PROG_SIZE) {
+    if (config.start_address > MAX_MEM){
+        std::cerr << "Invalid program start address" << std::endl;
+        return -2;
+    }
+
+    if (fileSize > MAX_MEM - config.start_address) {
         std::cerr << "File size exceeds max program size" << std::endl;
         return -2;
     }
@@ -133,12 +138,13 @@ std::string CPU::hash_bin(int fileSize){
 void CPU::press_key(uint8_t key) {
     std::lock_guard<std::mutex> lock(key_mtx);
     keys |= (1 << key);
-    pressed = key;
+    pressed |= (1 << key);
 }
 
 void CPU::release_key(uint8_t key) {
     std::lock_guard<std::mutex> lock(key_mtx);
     keys ^= (1 << key);
+    released = key;
 }
 
 uint8_t* CPU::get_screen() {
@@ -186,12 +192,24 @@ void CPU::set_config(Config config) {
     color_update = true;
 }
 
+void CPU::dump_reg(){
+    std::cout << "<------------[Reigsters]------------>" << std::endl;
+    std::cout << std::hex << "I: " << I << std::endl;
+    for (int i=0; i < 16; i++) {
+        std::cout << std::hex << "V"<< i  << ": " << int(registers[i]) << std::endl;
+    }
+    std::cout << "<----------------------------------->" << std::endl;
+}
+
 /*-----------------[Main Functionality]-----------------*/
 
 // Do one fetch-decode cycle
 void CPU::emulate_cycle() {
     uint16_t instruction = CPU::fetch();
     CPU::decode(instruction);
+    if (paused) {
+        std::cout << std::hex << "Executing: " << instruction << std::endl;
+    }
 }
 
 // Start emulation loop running at speed instructions per cycle
@@ -902,12 +920,18 @@ void CPU::set_reg_delay(uint8_t x_reg) {
 
 //(FX0A) wait for key press and release and set VX to that key
 void CPU::set_reg_keypress(uint8_t x_reg) {
-    if (!waiting) pressed = 0xFF;
+    std::lock_guard<std::mutex> lock(key_mtx);
+    if (!waiting) {
+        pressed = NO_PRESS;
+        released = NO_RELEASE;
+    }
     waiting = true;
-    if (pressed == 0xFF) {
+    if (pressed == NO_PRESS || released == NO_RELEASE || !(pressed & (1 << released))) {
         PC -= 2;
     } else {
-        registers[x_reg] = pressed;
+        registers[x_reg] = released;
+        pressed = NO_PRESS;
+        released = NO_RELEASE;
         waiting = false;
     }
 }
@@ -959,7 +983,7 @@ void CPU::write_reg_mem(uint8_t x_reg) {
         *addr_ptr += 1;
     }
     if (config.quirks.memory_increment_by_X) {
-        addr_ptr -= 1;
+        *addr_ptr -= 1;
     }
 }
 
@@ -978,7 +1002,7 @@ void CPU::read_mem_reg(uint8_t x_reg) {
         *addr_ptr += 1;
     }
     if (config.quirks.memory_increment_by_X) {
-        addr_ptr -= 1;
+        *addr_ptr -= 1;
     }
 }
 
@@ -1128,25 +1152,27 @@ void CPU::scroll_up_n(uint8_t val) {
 // TODO recheck implementation if something breaking
 // 5XY2 write memory starting from register X to register y
 void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
+    uint16_t addr = I;
     int8_t inc = x_reg <= y_reg ? 1 : -1;
 
     for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
-        memory[I] = registers[reg];
-        I += 1;
+        memory[addr] = registers[reg];
+        addr += 1;
     }
-    memory[I] = registers[y_reg];
+    memory[addr] = registers[y_reg];
 }
 
 // TODO recheck implementation if something breaking
 // 5XY2 read memory starting at I into register X to register y
 void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
+    uint16_t addr = I;
     int8_t inc = x_reg <= y_reg ? 1 : -1;
 
     for (uint8_t reg = x_reg; reg != y_reg; reg += inc) {
-        registers[reg] = memory[I];
-        I += 1;
+        registers[reg] = memory[addr];
+        addr += 1;
     }
-    registers[y_reg] = memory[I];
+    registers[y_reg] = memory[addr];
 }
 
 // TODO test this if things are breaking

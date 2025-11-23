@@ -64,6 +64,9 @@ void GUI::update() {
             if (ImGui::MenuItem("Step", "Ctrl+S")) {
                 core.step();
             };
+            if (ImGui::MenuItem("Registers")){
+                core.dump_reg();
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
