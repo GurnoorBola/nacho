@@ -34,6 +34,9 @@ void GUI::update() {
                 //reload if not default start addr
                 if (config.start_address != 0x200) core.loadProgram(game);
             };
+            if (ImGui::MenuItem("Reset")) {
+                core.reset();
+            }
             if (ImGui::MenuItem("Quit", "Esc")) {
                 core.terminate();
             }

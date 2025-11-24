@@ -92,6 +92,8 @@ class CPU {
 
     void set_config(Config config);
 
+    void reset();
+
     void dump_reg();
 
    private:
@@ -187,8 +189,6 @@ class CPU {
     void jump_plus(uint16_t addr);            // BNNN jump to NNN + V0
     void set_reg_rand(uint8_t x_reg,
                       uint8_t val);  // CXNN set VX to random byte (bitwise AND) NN
-    void display_8(uint8_t x_reg, uint8_t y_reg,
-                   uint8_t height);            // DXYH draw character at x, y
     void display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, 
                 uint8_t y_reg, uint8_t width, uint8_t height);                     // TODO DXYH but with specifier for plane, 
                                                                     // if height is 0 we draw 16 x 16 otherise draw 8 x height 

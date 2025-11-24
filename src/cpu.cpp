@@ -87,7 +87,7 @@ uint16_t CPU::peek() {
 
 // load program into memory starting from 0x200 (512)
 int CPU::loadProgram(std::string filename) {
-    pause();
+    reset();
     std::ifstream program("games/" + filename, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
@@ -105,7 +105,7 @@ int CPU::loadProgram(std::string filename) {
 
     if (fileSize > MAX_MEM - config.start_address) {
         std::cerr << "File size exceeds max program size" << std::endl;
-        return -2;
+        return -3;
     }
 
     program.read(reinterpret_cast<char*>(memory + config.start_address), fileSize);
@@ -190,6 +190,24 @@ void CPU::set_config(Config config) {
     pause();
     CPU::config = config;    
     color_update = true;
+}
+
+void CPU::reset() {
+    pause();
+    PC = I = config.start_address;
+    SP = -1; 
+    delay = sound = 0;
+    waiting = false;
+    lores = true;
+    beep = false;
+    bit_plane = 0b01;
+    pressed = NO_PRESS;
+    released = NO_RELEASE;
+    for (uint8_t i=0; i < 16; i++) {
+        registers[i] = flags[i] = 0;
+    }
+    std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+    screen_update = true;
 }
 
 void CPU::dump_reg(){

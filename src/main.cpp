@@ -8,11 +8,18 @@
 #include <iostream>
 #include <thread>
 
+#define INTRO_SCREEN "happy.ch8"
+
 int main() {
     CPU cpu;
     Display display(cpu);
 
-    cpu.pause();
+    if (cpu.loadProgram(INTRO_SCREEN) < 0) {
+        std::cerr << "Intro screen failed to load" << std::endl;
+    } else {
+        cpu.resume();
+    }
+
     // create new thread to run emulation loop
     std::thread emulate(&CPU::emulate_loop, &cpu);
     emulate.detach();
