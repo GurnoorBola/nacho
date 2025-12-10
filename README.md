@@ -1,6 +1,6 @@
-# The (greatest) Chip8 Emulator
+# NACHO
 
-A Chip-8 emulator with support for Classic CHIP-8, Super CHIP-8, and XO-Chip programs. 
+A Chip-8 emulator with support for Classic CHIP-8, Super CHIP-8, and XO-Chip programs.
 
 ## Description
 
@@ -28,7 +28,7 @@ Users on other platforms or those who prefer to build from source can compile GL
 ### Executing program
 
 * Place programs you want to run on the emulator in the games directory of the project. (Create if it doesn't exist)
-* Use the UI to slelect your game from the list and have fun! 
+* Use the UI to select your game from the list and have fun! 
 
 ## Work In Progress 
 
