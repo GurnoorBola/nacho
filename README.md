@@ -41,7 +41,7 @@ Users on other platforms or those who prefer to build from source can compile GL
 
 ## Work In Progress 
 
-* Fully setup SCHIP and XO-chip functionality
+* Add a full-featured debugger 
 * Make UI nicer
 * Add CRT effect to graphics 
 
