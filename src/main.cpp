@@ -14,7 +14,7 @@ int main() {
     CPU cpu;
     Display display(cpu);
 
-    if (cpu.loadProgram(INTRO_SCREEN) < 0) {
+    if (cpu.loadProgram("games/" + std::string(INTRO_SCREEN)) < 0) {
         std::cerr << "Intro screen failed to load" << std::endl;
     } else {
         cpu.resume();

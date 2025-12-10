@@ -86,9 +86,10 @@ uint16_t CPU::peek() {
 /*-----------------[IO Functions]-----------------*/
 
 // load program into memory starting from 0x200 (512)
-int CPU::loadProgram(std::string filename) {
+int CPU::loadProgram(std::string filepath) {
     reset();
-    std::ifstream program("games/" + filename, std::ios::binary);
+    std::cout << filepath << std::endl;
+    std::ifstream program(filepath, std::ios::binary);
     if (!program.is_open()) {
         std::cerr << "Program failed to open" << std::endl;
         return -1;

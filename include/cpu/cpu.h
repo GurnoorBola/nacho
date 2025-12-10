@@ -64,7 +64,7 @@ class CPU {
 
     // IO functionality
 
-    int loadProgram(std::string filename);
+    int loadProgram(std::string filepath);
     std::string hash_bin(int fileSize);
 
     // Main CHIP8 Functionality
