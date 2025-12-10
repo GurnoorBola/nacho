@@ -2,9 +2,18 @@
 
 A Chip-8 emulator with support for Classic CHIP-8, Super CHIP-8, and XO-Chip programs.
 
+| Startup Screen | "T8NKS" by your name here |
+|-------|-------|
+| ![img1](media/img1.png) | ![img2](media/img2.png) |
+
+| "an evening to Die for" by JohnEarnest | "Slippery Slope" by JohnEarnest |
+|-------|-------|
+| ![img3](media/img3.png) | ![img4](media/img4.png) |
+
+
 ## Description
 
-This project is written fully in C++ and uses GLFW + OpenGL for graphics. This is my first foray into emulation, enjoy!
+NACHO is fully written in C++ and uses GLFW + OpenGL for graphics.
 
 ## Getting Started
 
