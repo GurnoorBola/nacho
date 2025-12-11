@@ -53,13 +53,10 @@ void Database::set_game_quirks(CPU::Config& config, json& game_rom) {
     json colors = game_rom.value("colors", json(nullptr));
     if (colors != nullptr) {
         std::vector<std::string> pixels = colors.value("pixels", std::vector<std::string>());
-        if (!pixels.empty()) {
-            config.offColor = hex_to_rgb(pixels[0]);
-            config.baseColor1 = hex_to_rgb(pixels[1]);
-            if (pixels.size() > 2) {
-                config.baseColor2 = hex_to_rgb(pixels[2]);
-                config.highlight = hex_to_rgb(pixels[3]);
-            }
+
+        int length = pixels.size();
+        for (int i=0; i < length; i++) {
+           config.colors[i] = hex_to_rgb(pixels[i]);
         }
     }
 }
@@ -69,7 +66,6 @@ std::array<float, 3> Database::hex_to_rgb(std::string hex) {
     rgb[0] = std::stoi(hex.substr(1, 2), nullptr, 16) / 255.0f;
     rgb[1] = std::stoi(hex.substr(3, 2), nullptr, 16) / 255.0f;
     rgb[2] = std::stoi(hex.substr(5, 2), nullptr, 16) / 255.0f;
-
     return rgb;
 }
 

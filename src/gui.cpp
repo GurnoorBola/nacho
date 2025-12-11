@@ -30,10 +30,12 @@ void GUI::update() {
             std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
 
             int fileSize = core.loadProgram(filePathName);
-            CPU::Config config = db.gen_config(core.hash_bin(fileSize));
-            core.set_config(config);
-            //reload if not default start addr
-            if (config.start_address != 0x200) core.loadProgram(filePathName);
+            if (fileSize >= 0) {
+                CPU::Config config = db.gen_config(core.hash_bin(fileSize));
+                core.set_config(config);
+                //reload if not default start addr
+                if (config.start_address != 0x200) core.loadProgram(filePathName);
+            }
         }
         // close
         ImGuiFileDialog::Instance()->Close();

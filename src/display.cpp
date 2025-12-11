@@ -85,10 +85,9 @@ void Display::init_display() {
     glEnableVertexAttribArray(1);
 
     // set on and off color uniforms
-    shader.setVec3fv("baseColor1", core.config.baseColor1.data());
-    shader.setVec3fv("baseColor2", core.config.baseColor2.data());
-    shader.setVec3fv("highlight", core.config.highlight.data());
-    shader.setVec3fv("offColor", core.config.offColor.data());
+    for (int i=0; i < 16; i++) {
+        shader.setVec3fv("color" + std::to_string(i), core.config.colors[i].data());
+    }
 }
 
 void Display::render_loop() {
@@ -142,11 +141,10 @@ void Display::render_loop() {
 
 void Display::update_colors() {
     shader.use();
-    // set on and off color uniforms
-    shader.setVec3fv("baseColor1", core.config.baseColor1.data());
-    shader.setVec3fv("baseColor2", core.config.baseColor2.data());
-    shader.setVec3fv("highlight", core.config.highlight.data());
-    shader.setVec3fv("offColor", core.config.offColor.data());
+
+    for (int i=0; i < 16; i++) {
+        shader.setVec3fv("color" + std::to_string(i), core.config.colors[i].data());
+    }
 }
 
 void Display::terminate() {

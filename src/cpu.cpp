@@ -91,7 +91,7 @@ int CPU::loadProgram(std::string filepath) {
     std::cout << filepath << std::endl;
     std::ifstream program(filepath, std::ios::binary);
     if (!program.is_open()) {
-        std::cerr << "Program failed to open" << std::endl;
+        std::cerr << "Invalid file" << std::endl;
         return -1;
     }
 
