@@ -148,18 +148,18 @@ void CPU::release_key(uint8_t key) {
     released = key;
 }
 
-uint8_t* CPU::get_screen() {
+std::array<uint8_t, SCREEN_SIZE> CPU::get_screen() {
     std::lock_guard<std::mutex> lock(screen_mtx);
     return screen;
 }
 
-uint8_t* CPU::check_screen() {
+bool CPU::check_screen() {
     std::lock_guard<std::mutex> lock(screen_mtx);
     if (screen_update) {
         screen_update = false;
-        return screen;
+        return true;
     }
-    return NULL;
+    return false;
 }
 
 bool CPU::check_stop() {
@@ -207,7 +207,7 @@ void CPU::reset() {
     for (uint8_t i=0; i < 16; i++) {
         registers[i] = flags[i] = 0;
     }
-    std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+    std::fill(screen.begin(), screen.end(), 0);
     screen_update = true;
 }
 
@@ -1101,7 +1101,7 @@ void CPU::switch_lores() {
     // SCHIP Quirk: original didnt clear screen
     if (config.quirks.clean_screen) {
         std::lock_guard<std::mutex> lock(screen_mtx);
-        std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+        std::fill(screen.begin(), screen.end(), 0);
         screen_update = true;
     }
     lores = true;
@@ -1112,7 +1112,7 @@ void CPU::switch_hires() {
     // SCHIP Quirk: original didnt clear screen
     if (config.quirks.clean_screen) {
         std::lock_guard<std::mutex> lock(screen_mtx);
-        std::memset(screen, 0, WIDTH * HEIGHT * sizeof(uint8_t));
+        std::fill(screen.begin(), screen.end(), 0);
         screen_update = true;
     }
     lores = false;

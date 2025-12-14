@@ -10,6 +10,7 @@
 #define MAX_STACK 16
 #define WIDTH 128
 #define HEIGHT 64
+#define SCREEN_SIZE (WIDTH * HEIGHT)
 
 #define CHIP8 0
 #define SCHIP_MODERN 2
@@ -101,8 +102,8 @@ class CPU {
     void release_key(uint8_t key);
 
     // check for update and return screen if updated else return NULL
-    uint8_t* get_screen();
-    uint8_t* check_screen();
+    std::array<uint8_t, SCREEN_SIZE> get_screen();
+    bool check_screen();
 
     bool check_stop();
     bool check_color();
@@ -118,7 +119,7 @@ class CPU {
 
    private:
     uint8_t memory[MAX_MEM] = {};
-    uint8_t screen[WIDTH * HEIGHT] = {};
+    std::array<uint8_t, SCREEN_SIZE> screen = {};
     uint16_t PC;
     uint16_t I;
     uint16_t stack[MAX_STACK] = {};
