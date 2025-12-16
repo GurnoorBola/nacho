@@ -257,6 +257,8 @@ void CPU::emulate_cycle() {
 void CPU::emulate_loop() {
     while (1) {
         if (!paused) {
+            if (config.system == XO_CHIP) audio_callback();
+            decrementTimers();
             for (int i = 0; i < config.speed; i++) {
                 if (stop) {
                     break;
@@ -267,19 +269,16 @@ void CPU::emulate_loop() {
                 }
                 emulate_cycle();
             }
+            screen_update = true;
         }
         if (stop) {
             break;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        if (!paused) {
-            if (config.system == XO_CHIP) audio_callback();
-            decrementTimers();
-        }
     }
 }
 
-// decrease sound and dealy timer by 1
+// decrease sound and delay timer by 1
 void CPU::decrementTimers() {
     std::lock_guard<std::mutex> lock(sound_mtx);
     if (delay) delay -= 1;
@@ -664,7 +663,6 @@ void CPU::clear() {
             screen[screen_index] &= ~bit_plane;
         }
     }
-    screen_update = true;
 }
 
 //(00EE) return from subroutine
@@ -929,7 +927,6 @@ void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_re
     if (lores && config.quirks.vblank) {
         draw = true;
     }
-    screen_update = true;
 }
 
 //(EX9E) skip if key represented by VX's lower nibble is pressed
@@ -1066,7 +1063,6 @@ void CPU::scroll_down_n(uint8_t val) {
             }
         }
     }
-    screen_update = true;
 }
 
 //(00FB) scroll screen right by four pixels  (SCHIP Quirk: lores scrolls half)
@@ -1087,7 +1083,6 @@ void CPU::scroll_right_four() {
             } 
         }
     }
-    screen_update = true;
 }
 
 //(00FC) scroll screen left by four pixels (SCHIP Quirk: lores scrolls half)
@@ -1108,7 +1103,6 @@ void CPU::scroll_Left_four() {
             }
        }
     }
-    screen_update = true;
 }
 
 // TODO make this function return to start screen not kill render loop
@@ -1124,7 +1118,6 @@ void CPU::switch_lores() {
     if (config.quirks.clean_screen) {
         std::lock_guard<std::mutex> lock(screen_mtx);
         std::fill(screen.begin(), screen.end(), 0);
-        screen_update = true;
     }
     lores = true;
 }
@@ -1135,7 +1128,6 @@ void CPU::switch_hires() {
     if (config.quirks.clean_screen) {
         std::lock_guard<std::mutex> lock(screen_mtx);
         std::fill(screen.begin(), screen.end(), 0);
-        screen_update = true;
     }
     lores = false;
 }
@@ -1187,7 +1179,6 @@ void CPU::scroll_up_n(uint8_t val) {
             }
         }
     }
-    screen_update = true;
 }
 
 // 5XY2 write memory starting from register X to register y

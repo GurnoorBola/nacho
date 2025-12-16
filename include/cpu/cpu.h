@@ -134,8 +134,8 @@ class CPU {
     uint16_t I;
     uint16_t stack[MAX_STACK] = {};
     uint8_t SP = -1;
-    uint8_t delay = 0;
-    uint8_t sound = 0;
+    int delay = 0;
+    int sound = 0;
     uint8_t registers[16] = {};
 
     uint8_t flags[16] = {};
@@ -186,7 +186,6 @@ class CPU {
     uint16_t fetch();
     void decode(uint16_t instruction);
     void decrementTimers();
-    void push_frame_samples();
 
     //[chip8] opcodes
     void clear();                                        // 00E0 Clear Screen
@@ -268,9 +267,6 @@ class CPU {
     void jump_plus_reg(uint16_t addr,
                        uint8_t x_reg);  // BXNN jump to XNN + V[X] (Note: this replaces BNNN
                                         // which is used for classic and XO chip)
-    void display_16(uint8_t x_reg,
-                    uint8_t y_reg);           // DXY0 draw (16x16) sprite at V[X], V[Y]
-                                              // starting from I (see site for quirks)
     void set_index_font_big(uint8_t x_reg);   // FX30 set I to big font (10 line) for digit in
                                               // lowest nibble of V[X]
     void write_flags_storage(uint8_t x_reg);  // FX75 write V[0] to V[X] in flags storage
