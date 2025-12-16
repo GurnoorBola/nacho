@@ -12,6 +12,10 @@
 #define HEIGHT 64
 #define SCREEN_SIZE (WIDTH * HEIGHT)
 
+//Sample_size = audio rate / frame rate
+#define SAMPLE_SIZE 48000 / 60 
+#define DEVICE_SAMPLE_RATE 48000
+
 #define CHIP8 0
 #define SCHIP_MODERN 2
 #define SCHIP1_1 6
@@ -19,6 +23,7 @@
 
 #define START_BEEP 1
 #define STOP_BEEP 2
+#define MAX_AMPLITUDE 192
 
 #define NO_PRESS 0
 #define NO_RELEASE -1
@@ -78,6 +83,7 @@ class CPU {
 
         Quirks quirks;
     };
+    std::atomic<int> system = config.system;
 
     Config config;
 
@@ -104,6 +110,10 @@ class CPU {
     // check for update and return screen if updated else return NULL
     std::array<uint8_t, SCREEN_SIZE> get_screen();
     bool check_screen();
+    std::array<uint8_t, SAMPLE_SIZE> gen_frame_samples();
+    void set_audio_callback(std::function<void(void)> callback);
+
+    int get_system();
 
     bool check_stop();
     bool check_color();
@@ -129,6 +139,12 @@ class CPU {
     uint8_t registers[16] = {};
 
     uint8_t flags[16] = {};
+
+    uint8_t audio_pattern[128] = {};
+    float playback_rate = 4000;
+    float phase = 0;
+    std::function<void(void)> audio_callback;
+
     bool lores = true;
 
     uint8_t bit_plane = 0b01;
@@ -153,8 +169,8 @@ class CPU {
     // bool to notify if we drew
     std::atomic<bool> draw = false;
     // bool if screen updated
-    bool screen_update = false;
-    //bool if currently beeping
+    std::atomic<bool> screen_update = false;
+    // bool if currently beeping
     bool beep = false;
     //if colors updated in config
     std::atomic<bool> color_update = false;
@@ -170,6 +186,7 @@ class CPU {
     uint16_t fetch();
     void decode(uint16_t instruction);
     void decrementTimers();
+    void push_frame_samples();
 
     //[chip8] opcodes
     void clear();                                        // 00E0 Clear Screen

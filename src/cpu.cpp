@@ -154,12 +154,32 @@ std::array<uint8_t, SCREEN_SIZE> CPU::get_screen() {
 }
 
 bool CPU::check_screen() {
-    std::lock_guard<std::mutex> lock(screen_mtx);
     if (screen_update) {
         screen_update = false;
         return true;
     }
     return false;
+}
+
+int CPU::get_system() {
+    return system;
+}
+
+void CPU::set_audio_callback(std::function<void(void)> callback) {
+    audio_callback = callback;
+}
+
+//Generate a frames worth of audio samples from the pattern buffer
+std::array<uint8_t, SAMPLE_SIZE> CPU::gen_frame_samples() {
+    std::array<uint8_t, SAMPLE_SIZE> samples;
+    float step_size = playback_rate/128/DEVICE_SAMPLE_RATE;
+
+    for (int i=0; i < SAMPLE_SIZE; i++) {
+        float position = phase + step_size;
+        phase = fmod(position, 1.0);
+        samples[i] = MAX_AMPLITUDE * audio_pattern[int(128 * phase)];
+    }
+    return samples;
 }
 
 bool CPU::check_stop() {
@@ -190,9 +210,11 @@ int CPU::check_should_beep() {
 void CPU::set_config(Config config) {
     pause();
     CPU::config = config;    
+    system = config.system;
     color_update = true;
 }
 
+//TODO fix bug when changing games that use diff systems
 void CPU::reset() {
     pause();
     PC = I = config.start_address;
@@ -250,7 +272,10 @@ void CPU::emulate_loop() {
             break;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        decrementTimers();
+        if (!paused) {
+            if (config.system == XO_CHIP) audio_callback();
+            decrementTimers();
+        }
     }
 }
 
@@ -809,7 +834,6 @@ void CPU::set_reg_rand(uint8_t x_reg, uint8_t val) {
 
 
 //loop through the first four bits of bit_plane and draw with that plane if there is a 1 there
-//TODO (DXYN) new version returns last memory index it drew from 
 void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_reg, uint8_t width, uint8_t height) {
     std::lock_guard<std::mutex> lock(screen_mtx);
     int scale = lores ? 2 : 1; //multiply everything by two if we in lores
@@ -989,7 +1013,6 @@ void CPU::set_reg_BCD(uint8_t x_reg) {
 
 //(FX55) write contents of V0 to VX to memory at I (classic)
 void CPU::write_reg_mem(uint8_t x_reg) {
-    // TODO make toggle for below behavior
     // classic behavior modifies I
     // modern behavior doesn't
     uint16_t addr = I;
@@ -1008,7 +1031,6 @@ void CPU::write_reg_mem(uint8_t x_reg) {
 
 //(FX65) read contents of memory at I into V0 to VX (classic)
 void CPU::read_mem_reg(uint8_t x_reg) {
-    // TODO make toggle for below behavior
     // classic behavior modifies I
     // modern behavior doesn't
     uint16_t addr = I;
@@ -1168,7 +1190,6 @@ void CPU::scroll_up_n(uint8_t val) {
     screen_update = true;
 }
 
-// TODO recheck implementation if something breaking
 // 5XY2 write memory starting from register X to register y
 void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     uint16_t addr = I;
@@ -1181,7 +1202,6 @@ void CPU::write_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     memory[addr] = registers[y_reg];
 }
 
-// TODO recheck implementation if something breaking
 // 5XY2 read memory starting at I into register X to register y
 void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     uint16_t addr = I;
@@ -1194,7 +1214,6 @@ void CPU::read_reg_mem_range(uint8_t x_reg, uint8_t y_reg) {
     registers[y_reg] = memory[addr];
 }
 
-// TODO test this if things are breaking
 // FOOO NNNN read the next two bytes into I
 void CPU::set_index_long() {
     I = fetch();
@@ -1207,10 +1226,17 @@ void CPU::select_plane(uint8_t val) {
 
 // F002 load 16 byte audio pattern pointed by I into audio pattern buffer
 void CPU::set_waveform() {
-    // TODO implement this
+    phase = 0;
+    for (uint16_t i=0; i < 16; i++) {
+        uint8_t pattern = memory[I + i];
+        for (int b=7; b >= 0; b--) {
+            audio_pattern[8*i + (7 - b)] = (pattern >> b) & 1;
+        }
+    }
 }
 
 // FX3A set playback rate to 4000*2^((vX-64)/48)Hz
 void CPU::set_pitch(uint8_t x_reg) {
-    // TODO implement this
+    uint8_t val = registers[x_reg];
+    playback_rate = 4000 * pow(2, (val-64)/48.0);
 }

@@ -5,9 +5,8 @@
 #include <miniaudio.h>
 #include <shaders/shader.h>
 
-#define DEVICE_FORMAT ma_format_f32
-#define DEVICE_CHANNELS 2
-#define DEVICE_SAMPLE_RATE 48000
+#define DEVICE_FORMAT ma_format_u8
+#define DEVICE_CHANNELS 1 
 
 #define SCALE 10
 #define OFFSET 2 
@@ -24,6 +23,7 @@ class Display {
 
    private:
     CPU& core;
+    int system = core.system;
 
     GUI gui;
 
@@ -31,6 +31,7 @@ class Display {
     Shader shader;
 
     ma_device device;
+    ma_pcm_rb rb;
     ma_waveform squareWave;
 
     unsigned int VAO;
@@ -41,9 +42,17 @@ class Display {
 
     void init_display();
 
-    void init_audio();
+    void init_default_audio();
 
-    static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+    void init_xo_audio();
+
+    void write_samples_callback(); 
+
+    static void xo_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+
+    static void default_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+
+    void set_audio(uint8_t system);
 
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 

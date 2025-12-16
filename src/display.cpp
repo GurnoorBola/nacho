@@ -5,7 +5,7 @@
 Display::Display(CPU& cpu) : core(cpu), gui(core) {
     init_display();
     gui.init_gui(window);
-    init_audio();
+    init_default_audio();
 }
 
 /*-----------------[Window]-----------------*/
@@ -102,6 +102,12 @@ void Display::render_loop() {
 
         if (core.check_screen() == true) {
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_BYTE, core.get_screen().data());
+        }
+        
+        //TODO make this check better
+        if (core.get_system() != system) {
+           system = core.get_system();
+           set_audio(system);
         }
 
         switch (core.check_should_beep()) {
@@ -315,7 +321,23 @@ void Display::key_callback(GLFWwindow* window, int key, int scancode, int action
 
 /*-----------------[Audio]-----------------*/
 
-void Display::init_audio() {
+//Writes samples to ringbuffer
+void Display::write_samples_callback() {
+    //write to ring buffer
+    ma_pcm_rb* pRB = &rb;
+    ma_uint32 numSamples = SAMPLE_SIZE;
+
+    void* pWriteBuffer;
+    ma_pcm_rb_acquire_write(pRB, &numSamples, &pWriteBuffer);
+
+    std::array<uint8_t, SAMPLE_SIZE> samples = core.gen_frame_samples();
+
+    memcpy(pWriteBuffer, samples.data(), numSamples);
+
+    ma_pcm_rb_commit_write(pRB, numSamples);
+}
+
+void Display::init_default_audio() {
     ma_device_config deviceConfig;
     ma_waveform_config squareWaveConfig;
 
@@ -323,7 +345,7 @@ void Display::init_audio() {
     deviceConfig.playback.format = DEVICE_FORMAT;
     deviceConfig.playback.channels = DEVICE_CHANNELS;
     deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
-    deviceConfig.dataCallback = data_callback;
+    deviceConfig.dataCallback = default_data_callback;
     deviceConfig.pUserData = &squareWave;
 
     if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
@@ -335,7 +357,32 @@ void Display::init_audio() {
     ma_waveform_init(&squareWaveConfig, &squareWave);
 }
 
-void Display::data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+void Display::init_xo_audio() {
+    //set audio callback to write samples 
+    core.set_audio_callback([this](){
+        this->write_samples_callback();
+    });
+
+    ma_device_config deviceConfig;
+
+    ma_result result = ma_pcm_rb_init(DEVICE_FORMAT, DEVICE_CHANNELS, SAMPLE_SIZE*3, NULL, NULL, &rb);
+    if (result != MA_SUCCESS) {
+        throw std::runtime_error("Failed to initialize ring buffer");
+    }
+
+    deviceConfig = ma_device_config_init(ma_device_type_playback);
+    deviceConfig.playback.format = DEVICE_FORMAT;
+    deviceConfig.playback.channels = DEVICE_CHANNELS;
+    deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
+    deviceConfig.dataCallback = xo_data_callback;
+    deviceConfig.pUserData = &rb;
+
+    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
+        throw std::runtime_error("Failed to initialize audio device");
+    }
+}
+
+void Display::default_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ma_waveform* pSquareWave;
 
     assert(pDevice->playback.channels == DEVICE_CHANNELS);
@@ -346,4 +393,37 @@ void Display::data_callback(ma_device* pDevice, void* pOutput, const void* pInpu
     ma_waveform_read_pcm_frames(pSquareWave, pOutput, frameCount, NULL);
 
     (void)pInput;
+}
+
+void Display::xo_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+    ma_pcm_rb* pRB;
+
+    assert(pDevice->playback.channels == DEVICE_CHANNELS);
+
+    pRB = (ma_pcm_rb*)pDevice->pUserData;
+    assert(pRB != NULL);
+
+    ma_uint32 framesRead = frameCount;
+
+    //read frameCount frames from the ringbuffer
+    void* pInputBuffer;
+    ma_pcm_rb_acquire_read(pRB, &framesRead, &pInputBuffer);
+    memcpy(pOutput, pInputBuffer, framesRead);
+    //fill in leftover with 0s 
+    for (int i=framesRead; i < frameCount; i++) {
+        *((ma_uint8*)pOutput + i) = 0;
+    }
+    ma_pcm_rb_commit_read(pRB, framesRead);
+
+    (void)pInput;
+}
+
+
+void Display::set_audio(uint8_t system) {
+    ma_device_uninit(&device); 
+    if (system == XO_CHIP) {
+       init_xo_audio();
+    } else {
+        init_default_audio();
+    }
 }
