@@ -274,7 +274,16 @@ void CPU::emulate_loop() {
         if (stop) {
             break;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        auto start_wait = std::chrono::high_resolution_clock::now();
+        std::this_thread::sleep_for(std::chrono::milliseconds(14));
+        auto end_wait = std::chrono::high_resolution_clock::now();
+
+        //spinlock remaining time until 16.666 ms
+        auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end_wait - start_wait);
+        while (diff.count() < 16666) {
+            end_wait = std::chrono::high_resolution_clock::now();
+            diff = std::chrono::duration_cast<std::chrono::microseconds>(end_wait - start_wait);
+        }
     }
 }
 
