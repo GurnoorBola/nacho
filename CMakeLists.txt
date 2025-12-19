@@ -15,4 +15,8 @@ target_include_directories(chip8 PRIVATE
 )
 target_link_directories(chip8 PRIVATE ${CMAKE_SOURCE_DIR}/lib)
 
-target_link_libraries(chip8 PRIVATE glfw3dll opengl32 crypto)
+if (WIN32)
+    target_link_libraries(chip8 PRIVATE glfw3dll opengl32 crypto winmm)
+else()
+    target_link_libraries(chip8 PRIVATE glfw3dll opengl32 crypto)
+endif()

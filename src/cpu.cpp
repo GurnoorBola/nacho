@@ -10,6 +10,10 @@
 #include <thread>
 #include <unordered_set>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 using json = nlohmann::json;
 
 const uint8_t fonts[] = {
@@ -52,6 +56,11 @@ const uint8_t big_fonts[] = {
 
 /*-----------------[Special Member Functions]-----------------*/
 CPU::CPU() {
+    #ifdef _WIN32
+    if (timeBeginPeriod(2) == TIMERR_NOCANDO) {
+        std::cerr << "Failed to set high resolution timer. Frame rate may be off" << std::endl;
+    }
+    #endif
     // copy fonts to memory (0x050 - 0x09F)
     memcpy(&memory[0x50], fonts, sizeof(fonts));
     // copy big fonts to memory (0xA0 - 0x13F)
@@ -256,6 +265,7 @@ void CPU::emulate_cycle() {
 // Start emulation loop running at speed instructions per cycle
 void CPU::emulate_loop() {
     while (1) {
+        auto start = std::chrono::high_resolution_clock::now();
         if (!paused) {
             if (config.system == XO_CHIP) audio_callback();
             decrementTimers();
@@ -274,15 +284,14 @@ void CPU::emulate_loop() {
         if (stop) {
             break;
         }
-        auto start_wait = std::chrono::high_resolution_clock::now();
         std::this_thread::sleep_for(std::chrono::milliseconds(14));
-        auto end_wait = std::chrono::high_resolution_clock::now();
+        auto end = std::chrono::high_resolution_clock::now();
 
         //spinlock remaining time until 16.666 ms
-        auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end_wait - start_wait);
+        auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         while (diff.count() < 16666) {
-            end_wait = std::chrono::high_resolution_clock::now();
-            diff = std::chrono::duration_cast<std::chrono::microseconds>(end_wait - start_wait);
+            end = std::chrono::high_resolution_clock::now();
+            diff = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         }
     }
 }
@@ -312,6 +321,11 @@ void CPU::step() {
 
 // set stop flag to on
 void CPU::terminate() {
+    #ifdef _WIN32
+    if (timeEndPeriod(2) == TIMERR_NOCANDO) {
+        std::cerr << "Failed to end high resolution timer..." << std::endl;
+    };
+    #endif
     stop = true;
 }
 

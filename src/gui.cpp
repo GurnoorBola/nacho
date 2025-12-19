@@ -47,28 +47,37 @@ void GUI::update() {
                 IGFD::FileDialogConfig config;
                 config.path = std::getenv("USERPROFILE");
                 ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ch8,.xo8", config);
-            };
-            if (ImGui::MenuItem("Reset")) {
-                core.reset();
+            }
+            if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                //TODO add savestate functionality
             }
             if (ImGui::MenuItem("Quit", "Esc")) {
                 core.terminate();
             }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("System")) {
             if (ImGui::BeginMenu("Mode", "Ctrl+M")) {
                 if (ImGui::MenuItem("Chip8")){
                     core.set_config(db.gen_platform_config(CHIP8));
-                };
+                }
                 if (ImGui::MenuItem("SCHIP 1.1")){
                     core.set_config(db.gen_platform_config(SCHIP1_1));
-                };
+                }
                 if (ImGui::MenuItem("SCHIP Modern")){
                     core.set_config(db.gen_platform_config(SCHIP_MODERN));
-                };
+                }
                 if (ImGui::MenuItem("XO-CHIP")){
                     core.set_config(db.gen_platform_config(XO_CHIP));
-                };
+                }
                 ImGui::EndMenu();  
-            };
+            }
+            if (ImGui::MenuItem("Config")) {
+                //TODO add a menu to set a config and change quirks, etc.
+            }
+            if (ImGui::MenuItem("Reset")) {
+                core.reset();
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debugger")) {
