@@ -1,8 +1,10 @@
+#include <ImGuiFileDialog.h>
 #include <gui/gui.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <ImGuiFileDialog.h>
+
+#include "cpu/cpu.h"
 
 GUI::GUI(CPU& cpu) : core(cpu), db("database") {}
 
@@ -18,14 +20,18 @@ void GUI::init_gui(GLFWwindow* window) {
     ImGui_ImplOpenGL3_Init();
 }
 
+//global size of window
+ImVec2 maxSize = ImVec2((float)WIDTH * 10, (float)HEIGHT * 10);  // The full display area
+ImVec2 minSize = maxSize * 0.5f;                                 // Half the display area
+
 void GUI::update() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     // ImGui::ShowDemoWindow();
 
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoCollapse, minSize, maxSize)) {
+        if (ImGuiFileDialog::Instance()->IsOk()) {                           // action if OK
             std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
             std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
 
@@ -33,7 +39,7 @@ void GUI::update() {
             if (fileSize >= 0) {
                 CPU::Config config = db.gen_config(core.hash_bin(fileSize));
                 core.set_config(config);
-                //reload if not default start addr
+                // reload if not default start addr
                 if (config.start_address != 0x200) core.loadProgram(filePathName);
             }
         }
@@ -45,11 +51,11 @@ void GUI::update() {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {
                 IGFD::FileDialogConfig config;
-                config.path = std::getenv("USERPROFILE");
+                config.path = "games";
                 ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ch8,.xo8", config);
             }
             if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                //TODO add savestate functionality
+                // TODO add savestate functionality
             }
             if (ImGui::MenuItem("Quit", "Esc")) {
                 core.terminate();
@@ -58,22 +64,22 @@ void GUI::update() {
         }
         if (ImGui::BeginMenu("System")) {
             if (ImGui::BeginMenu("Mode", "Ctrl+M")) {
-                if (ImGui::MenuItem("Chip8")){
+                if (ImGui::MenuItem("Chip8")) {
                     core.set_config(db.gen_platform_config(CHIP8));
                 }
-                if (ImGui::MenuItem("SCHIP 1.1")){
+                if (ImGui::MenuItem("SCHIP 1.1")) {
                     core.set_config(db.gen_platform_config(SCHIP1_1));
                 }
-                if (ImGui::MenuItem("SCHIP Modern")){
+                if (ImGui::MenuItem("SCHIP Modern")) {
                     core.set_config(db.gen_platform_config(SCHIP_MODERN));
                 }
-                if (ImGui::MenuItem("XO-CHIP")){
+                if (ImGui::MenuItem("XO-CHIP")) {
                     core.set_config(db.gen_platform_config(XO_CHIP));
                 }
-                ImGui::EndMenu();  
+                ImGui::EndMenu();
             }
             if (ImGui::MenuItem("Config")) {
-                //TODO add a menu to set a config and change quirks, etc.
+                // TODO add a menu to set a config and change quirks, etc.
             }
             if (ImGui::MenuItem("Reset")) {
                 core.reset();
@@ -90,7 +96,7 @@ void GUI::update() {
             if (ImGui::MenuItem("Step", "Ctrl+S")) {
                 core.step();
             };
-            if (ImGui::MenuItem("Registers")){
+            if (ImGui::MenuItem("Registers")) {
                 core.dump_reg();
             }
             ImGui::EndMenu();

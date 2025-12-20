@@ -3,7 +3,7 @@ project(chip8 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 file(GLOB VENDOR_INCLUDE "${CMAKE_SOURCE_DIR}/vendor/*/include")
 file(GLOB_RECURSE SOURCES vendor/*.c vendor/*.cpp src/*.cpp src/*.c)
