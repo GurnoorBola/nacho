@@ -21,18 +21,15 @@ NACHO is fully written in C++ and uses GLFW + OpenGL for graphics.
 
 * OpenGL 3.3 or higher
 * CMake version 3.16 or higher
-* Note: Tested on Windows. Linux compatibility unverified.
+* Windows or Linux  
 
 ### Build 
 
-* Simply run the commands below from the projects root directory: 
+* Simply run the commands below from the project's root directory: 
 ```
 cmake -S . -B build
 cmake --build build
 ```
-
-* A precompiled GLFW binary is included for convenience (Windows only).
-Users on other platforms or those who prefer to build from source can compile GLFW themselves and replace the included library.
 
 ### Executing program
 
