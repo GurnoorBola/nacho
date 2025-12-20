@@ -15,8 +15,24 @@ target_include_directories(chip8 PRIVATE
 )
 target_link_directories(chip8 PRIVATE ${CMAKE_SOURCE_DIR}/lib)
 
+include(FetchContent)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 3.4
+)
+FetchContent_MakeAvailable(glfw)
+
+find_package(OpenGL REQUIRED)
+find_package(OpenSSL REQUIRED)
+
+
+target_link_libraries(chip8 PRIVATE 
+    glfw 
+    OpenGL::GL
+    OpenSSL::Crypto
+)
+
 if (WIN32)
-    target_link_libraries(chip8 PRIVATE glfw3dll opengl32 crypto winmm)
-else()
-    target_link_libraries(chip8 PRIVATE glfw3dll opengl32 crypto)
+    target_link_libraries(chip8 PRIVATE winmm)
 endif()

@@ -1,6 +1,6 @@
 #include <cpu/cpu.h>
 #include <glad.h>
-#include <glfw3.h>
+#include <GLFW/glfw3.h>
 #include <gui/gui.h>
 #include <miniaudio.h>
 #include <shaders/shader.h>

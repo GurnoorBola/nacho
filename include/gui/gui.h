@@ -1,6 +1,6 @@
 #include <cpu/cpu.h>
 #include <database/database.h>
-#include <glfw3.h>
+#include <GLFW/glfw3.h>
 
 class GUI {
    public:

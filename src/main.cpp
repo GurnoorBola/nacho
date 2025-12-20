@@ -1,8 +1,5 @@
-#include <Shaders/shader.h>
 #include <cpu/cpu.h>
 #include <display/display.h>
-#include <glad.h>
-#include <glfw3.h>
 
 #include <cmath>
 #include <iostream>
