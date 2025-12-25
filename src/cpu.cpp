@@ -5,10 +5,10 @@
 #include <chrono>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <json.hpp>
 #include <mutex>
 #include <thread>
-#include <unordered_set>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -56,11 +56,11 @@ const uint8_t big_fonts[] = {
 
 /*-----------------[Special Member Functions]-----------------*/
 CPU::CPU() {
-    #ifdef _WIN32
+#ifdef _WIN32
     if (timeBeginPeriod(2) == TIMERR_NOCANDO) {
         std::cerr << "Failed to set high resolution timer. Frame rate may be off" << std::endl;
     }
-    #endif
+#endif
     // copy fonts to memory (0x050 - 0x09F)
     memcpy(&memory[0x50], fonts, sizeof(fonts));
     // copy big fonts to memory (0xA0 - 0x13F)
@@ -108,14 +108,9 @@ int CPU::loadProgram(std::string filepath) {
     std::streampos fileSize = program.tellg();
     program.seekg(0, std::ios::beg);
 
-    if (config.start_address > MAX_MEM){
-        std::cerr << "Invalid program start address" << std::endl;
-        return -2;
-    }
-
     if (fileSize > MAX_MEM - config.start_address) {
         std::cerr << "File size exceeds max program size" << std::endl;
-        return -3;
+        return -2;
     }
 
     program.read(reinterpret_cast<char*>(memory + config.start_address), fileSize);
@@ -131,7 +126,7 @@ int CPU::loadProgram(std::string filepath) {
     return fileSize;
 }
 
-std::string CPU::hash_bin(int fileSize){
+std::string CPU::hash_bin(int fileSize) {
     // compute hash
     unsigned char hash[SHA_DIGEST_LENGTH];
     SHA1(memory + config.start_address, fileSize, hash);
@@ -170,20 +165,16 @@ bool CPU::check_screen() {
     return false;
 }
 
-int CPU::get_system() {
-    return system;
-}
-
 void CPU::set_audio_callback(std::function<void(void)> callback) {
     audio_callback = callback;
 }
 
-//Generate a frames worth of audio samples from the pattern buffer
+// Generate a frames worth of audio samples from the pattern buffer
 std::array<uint8_t, SAMPLE_SIZE> CPU::gen_frame_samples() {
     std::array<uint8_t, SAMPLE_SIZE> samples;
-    float step_size = playback_rate/128/DEVICE_SAMPLE_RATE;
+    float step_size = playback_rate / 128 / DEVICE_SAMPLE_RATE;
 
-    for (int i=0; i < SAMPLE_SIZE; i++) {
+    for (int i = 0; i < SAMPLE_SIZE; i++) {
         float position = phase + step_size;
         phase = fmod(position, 1.0);
         samples[i] = MAX_AMPLITUDE * audio_pattern[int(128 * phase)];
@@ -203,50 +194,36 @@ bool CPU::check_color() {
     return false;
 }
 
-int CPU::check_should_beep() {
-    std::lock_guard<std::mutex> lock(sound_mtx);
-    if (!beep && sound > 0) {
-        beep = true;
-        return 1;
-    }
-    if (beep && sound == 0) {
-        beep = false;
-        return 2;
-    }
-    return 0;
-}
-
 void CPU::set_config(Config config) {
     pause();
-    CPU::config = config;    
-    system = config.system;
+    CPU::config = config;
     color_update = true;
 }
 
-//TODO fix bug when changing games that use diff systems
+// TODO fix bug when changing games that use diff systems
 void CPU::reset() {
     pause();
     PC = I = config.start_address;
-    SP = -1; 
+    SP = -1;
     delay = sound = 0;
     waiting = false;
     lores = true;
-    beep = false;
     bit_plane = 0b01;
     pressed = NO_PRESS;
     released = NO_RELEASE;
-    for (uint8_t i=0; i < 16; i++) {
+    for (uint8_t i = 0; i < 16; i++) {
         registers[i] = flags[i] = 0;
     }
+    memset(audio_pattern, 0, 128);
     std::fill(screen.begin(), screen.end(), 0);
     screen_update = true;
 }
 
-void CPU::dump_reg(){
+void CPU::dump_reg() {
     std::cout << "<------------[Reigsters]------------>" << std::endl;
     std::cout << std::hex << "I: " << I << std::endl;
-    for (int i=0; i < 16; i++) {
-        std::cout << std::hex << "V"<< i  << ": " << int(registers[i]) << std::endl;
+    for (int i = 0; i < 16; i++) {
+        std::cout << std::hex << "V" << i << ": " << int(registers[i]) << std::endl;
     }
     std::cout << "<----------------------------------->" << std::endl;
 }
@@ -267,7 +244,6 @@ void CPU::emulate_loop() {
     while (1) {
         auto start = std::chrono::high_resolution_clock::now();
         if (!paused) {
-            if (config.system == XO_CHIP) audio_callback();
             decrementTimers();
             for (int i = 0; i < config.speed; i++) {
                 if (stop) {
@@ -280,6 +256,7 @@ void CPU::emulate_loop() {
                 emulate_cycle();
             }
             screen_update = true;
+            if (sound) audio_callback();
         }
         if (stop) {
             break;
@@ -287,7 +264,7 @@ void CPU::emulate_loop() {
         std::this_thread::sleep_for(std::chrono::milliseconds(14));
         auto end = std::chrono::high_resolution_clock::now();
 
-        //spinlock remaining time until 16.666 ms
+        // spinlock remaining time until 16.666 ms
         auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         while (diff.count() < 16666) {
             end = std::chrono::high_resolution_clock::now();
@@ -298,22 +275,21 @@ void CPU::emulate_loop() {
 
 // decrease sound and delay timer by 1
 void CPU::decrementTimers() {
-    std::lock_guard<std::mutex> lock(sound_mtx);
     if (delay) delay -= 1;
     if (sound) sound -= 1;
 }
 
-//pause fetch decode loop
+// pause fetch decode loop
 void CPU::pause() {
     paused = true;
 }
 
-//resume fetch decode loop
+// resume fetch decode loop
 void CPU::resume() {
     paused = false;
 }
 
-//run one fetch decode cycle
+// run one fetch decode cycle
 void CPU::step() {
     if (!paused) pause();
     emulate_cycle();
@@ -321,11 +297,11 @@ void CPU::step() {
 
 // set stop flag to on
 void CPU::terminate() {
-    #ifdef _WIN32
+#ifdef _WIN32
     if (timeEndPeriod(2) == TIMERR_NOCANDO) {
         std::cerr << "Failed to end high resolution timer..." << std::endl;
     };
-    #endif
+#endif
     stop = true;
 }
 
@@ -441,11 +417,11 @@ void CPU::decode(uint16_t instruction) {
                 case 0x0:
                     CPU::skip_reg_equals(x_reg, y_reg);
                     break;
-                
+
                 case 0x2:
                     CPU::write_reg_mem_range(x_reg, y_reg);
                     break;
-                
+
                 case 0x3:
                     CPU::read_reg_mem_range(x_reg, y_reg);
                     break;
@@ -551,20 +527,20 @@ void CPU::decode(uint16_t instruction) {
             uint8_t height = instruction & 0xF;
             uint8_t width = 8;
             registers[0xF] = 0;
-            //exit early if we are a system that is able to draw 0 height sprite
+            // exit early if we are a system that is able to draw 0 height sprite
             if (height == 0) {
                 if (config.quirks.draw_zero) {
                     if (config.quirks.vblank) draw = true;
                     return;
                 }
-                if (!(lores && config.quirks.lores_8x16)){
+                if (!(lores && config.quirks.lores_8x16)) {
                     width = 16;
                 }
                 height = 16;
             }
 
             uint16_t mem_index = I;
-            //for every bit in bit_plane (4) we check if the bit is on and draw with that plane if it is
+            // for every bit in bit_plane (4) we check if the bit is on and draw with that plane if it is
             for (int i = 0; i < 4; i++) {
                 uint8_t plane = bit_plane & (1 << i);
                 if (plane) {
@@ -604,11 +580,11 @@ void CPU::decode(uint16_t instruction) {
                 case 0x00:
                     CPU::set_index_long();
                     break;
-                
+
                 case 0x01:
                     CPU::select_plane(x_reg);
                     break;
-                
+
                 case 0x02:
                     CPU::set_waveform();
                     break;
@@ -680,8 +656,8 @@ void CPU::decode(uint16_t instruction) {
 //(00E0) clear screen
 void CPU::clear() {
     std::lock_guard<std::mutex> lock(screen_mtx);
-    for (int r=0; r < HEIGHT; r++) {
-        for (int c=0; c < WIDTH; c++) {
+    for (int r = 0; r < HEIGHT; r++) {
+        for (int c = 0; c < WIDTH; c++) {
             int screen_index = (r * WIDTH) + c;
             screen[screen_index] &= ~bit_plane;
         }
@@ -708,7 +684,7 @@ void CPU::start_subroutine(uint16_t addr) {
 void CPU::skip_equals(uint8_t x_reg, uint8_t val) {
     if (registers[x_reg] == val) {
         uint16_t opcode = fetch();
-        if (opcode == 0xF000){
+        if (opcode == 0xF000) {
             fetch();
         }
     }
@@ -718,7 +694,7 @@ void CPU::skip_equals(uint8_t x_reg, uint8_t val) {
 void CPU::skip_not_equals(uint8_t x_reg, uint8_t val) {
     if (registers[x_reg] != val) {
         uint16_t opcode = fetch();
-        if (opcode == 0xF000){
+        if (opcode == 0xF000) {
             fetch();
         }
     }
@@ -728,7 +704,7 @@ void CPU::skip_not_equals(uint8_t x_reg, uint8_t val) {
 void CPU::skip_reg_equals(uint8_t x_reg, uint8_t y_reg) {
     if (registers[x_reg] == registers[y_reg]) {
         uint16_t opcode = fetch();
-        if (opcode == 0xF000){
+        if (opcode == 0xF000) {
             fetch();
         }
     }
@@ -831,7 +807,7 @@ void CPU::set_reg_shift_left(uint8_t x_reg, uint8_t y_reg) {
 void CPU::skip_reg_not_equals(uint8_t x_reg, uint8_t y_reg) {
     if (registers[x_reg] != registers[y_reg]) {
         uint16_t opcode = fetch();
-        if (opcode == 0xF000){
+        if (opcode == 0xF000) {
             fetch();
         }
     }
@@ -853,11 +829,10 @@ void CPU::set_reg_rand(uint8_t x_reg, uint8_t val) {
     registers[x_reg] = res & val;
 }
 
-
-//loop through the first four bits of bit_plane and draw with that plane if there is a 1 there
+// loop through the first four bits of bit_plane and draw with that plane if there is a 1 there
 void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_reg, uint8_t width, uint8_t height) {
     std::lock_guard<std::mutex> lock(screen_mtx);
-    int scale = lores ? 2 : 1; //multiply everything by two if we in lores
+    int scale = lores ? 2 : 1;  // multiply everything by two if we in lores
 
     width *= scale;
     height *= scale;
@@ -868,27 +843,27 @@ void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_re
     for (int r = y; r < (y + height); r += scale) {
         int row = r;
 
-        //we went off of screen
+        // we went off of screen
         if (row >= HEIGHT) {
-            //if we are on a system that sets number of collisions set it
+            // if we are on a system that sets number of collisions set it
             if (config.quirks.set_collisions && !lores) {
                 registers[0xF] += ((y + height) - HEIGHT);
             }
-            //if we dont wrap we are done 
+            // if we dont wrap we are done
             if (!config.quirks.wrap) {
                 break;
             }
-            //otherwise wrap around and continue
+            // otherwise wrap around and continue
             row = r % HEIGHT;
         }
 
-        //flag for if we got a collision in this row
+        // flag for if we got a collision in this row
         bool collision = false;
 
-        //index to select individual bits from the sprite
+        // index to select individual bits from the sprite
         int sprite_row_index;
 
-        //if our width is 16 * scale we extract two bytes otherwise we just extract one 
+        // if our width is 16 * scale we extract two bytes otherwise we just extract one
         uint16_t sprite_row;
         if (width == 16 * scale) {
             sprite_row = (memory[mem_index] << 8) + memory[mem_index + 1];
@@ -908,14 +883,14 @@ void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_re
                 }
                 col = c % WIDTH;
             }
-            
+
             uint8_t bit = (sprite_row >> sprite_row_index) & 1;
             sprite_row_index -= 1;
-            //if bit is 0 we can skip there is nothing to draw
+            // if bit is 0 we can skip there is nothing to draw
             if (bit == 0) continue;
             uint8_t draw_mask = plane;
 
-            //if we are in lores mode draw a 2x2 otherwise draw pixel by pixel
+            // if we are in lores mode draw a 2x2 otherwise draw pixel by pixel
             if (lores) {
                 int top_left = (row * WIDTH) + col;
                 int top_right = (row * WIDTH) + col + 1;
@@ -937,8 +912,8 @@ void CPU::display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, uint8_t y_re
                 screen[screen_index] ^= draw_mask;
             }
         }
-        //if there is a collision either increase the vf register by 1 if we are on a system that counts them
-        //otherwise just set it to 1
+        // if there is a collision either increase the vf register by 1 if we are on a system that counts them
+        // otherwise just set it to 1
         if (collision) {
             if (config.quirks.set_collisions && !lores) {
                 registers[0xF] += 1;
@@ -958,7 +933,7 @@ void CPU::skip_key_pressed(uint8_t x_reg) {
     uint8_t key = registers[x_reg] & 0xF;
     if ((keys >> key) & 1) {
         uint16_t opcode = fetch();
-        if (opcode == 0xF000){
+        if (opcode == 0xF000) {
             fetch();
         }
     }
@@ -970,7 +945,7 @@ void CPU::skip_key_not_pressed(uint8_t x_reg) {
     uint8_t key = registers[x_reg] & 0xF;
     if (!((keys >> key) & 1)) {
         uint16_t opcode = fetch();
-        if (opcode == 0xF000){
+        if (opcode == 0xF000) {
             fetch();
         }
     }
@@ -1006,7 +981,6 @@ void CPU::set_delay(uint8_t x_reg) {
 
 //(FX18) set sound timer to VX
 void CPU::set_sound(uint8_t x_reg) {
-    std::lock_guard<std::mutex> lock(sound_mtx);
     sound = registers[x_reg];
 }
 
@@ -1079,7 +1053,7 @@ void CPU::scroll_down_n(uint8_t val) {
     for (int row = HEIGHT - 1; row >= 0; row--) {
         for (int col = WIDTH - 1; col >= 0; col--) {
             int index = (row * WIDTH) + col;
-            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+            screen[index] &= ~(bit_plane);  // zeroes out bits that will be changed
             if ((row - val) >= 0) {
                 int replace_index = ((row - val) * WIDTH) + col;
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
@@ -1099,11 +1073,11 @@ void CPU::scroll_right_four() {
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = WIDTH - 1; col >= 0; col--) {
             int index = (row * WIDTH) + col;
-            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+            screen[index] &= ~(bit_plane);  // zeroes out bits that will be changed
             if ((col - val) >= 0) {
                 int replace_index = (row * WIDTH) + (col - val);
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
-            } 
+            }
         }
     }
 }
@@ -1119,12 +1093,12 @@ void CPU::scroll_Left_four() {
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = 0; col < WIDTH; col++) {
             int index = (row * WIDTH) + col;
-            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+            screen[index] &= ~(bit_plane);  // zeroes out bits that will be changed
             if ((col + val) < WIDTH) {
                 int replace_index = (row * WIDTH) + (col + val);
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
             }
-       }
+        }
     }
 }
 
@@ -1195,7 +1169,7 @@ void CPU::scroll_up_n(uint8_t val) {
     for (int row = 0; row < HEIGHT; row++) {
         for (int col = 0; col < WIDTH; col++) {
             int index = (row * WIDTH) + col;
-            screen[index] &= ~(bit_plane);                       // zeroes out bits that will be changed
+            screen[index] &= ~(bit_plane);  // zeroes out bits that will be changed
             if ((row + val) < HEIGHT) {
                 int replace_index = ((row + val) * WIDTH) + col;
                 screen[index] |= bit_plane & screen[replace_index];  // places the scrolled bits in correct bit spot
@@ -1241,10 +1215,10 @@ void CPU::select_plane(uint8_t val) {
 // F002 load 16 byte audio pattern pointed by I into audio pattern buffer
 void CPU::set_waveform() {
     phase = 0;
-    for (uint16_t i=0; i < 16; i++) {
+    for (uint16_t i = 0; i < 16; i++) {
         uint8_t pattern = memory[I + i];
-        for (int b=7; b >= 0; b--) {
-            audio_pattern[8*i + (7 - b)] = (pattern >> b) & 1;
+        for (int b = 7; b >= 0; b--) {
+            audio_pattern[8 * i + (7 - b)] = (pattern >> b) & 1;
         }
     }
 }
@@ -1252,5 +1226,5 @@ void CPU::set_waveform() {
 // FX3A set playback rate to 4000*2^((vX-64)/48)Hz
 void CPU::set_pitch(uint8_t x_reg) {
     uint8_t val = registers[x_reg];
-    playback_rate = 4000 * pow(2, (val-64)/48.0);
+    playback_rate = 4000 * pow(2, (val - 64) / 48.0);
 }

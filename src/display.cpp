@@ -1,11 +1,16 @@
 #include <display/display.h>
 
+#include <cstring>
+
+#include "cpu/cpu.h"
+#include "miniaudio.h"
+
 /*-----------------[Special Member Functions]-----------------*/
 
 Display::Display(CPU& cpu) : core(cpu), gui(core) {
     init_display();
     gui.init_gui(window);
-    init_default_audio();
+    init_audio();
 }
 
 /*-----------------[Window]-----------------*/
@@ -21,7 +26,7 @@ void Display::init_display() {
         throw std::runtime_error("Failed to create GLFW window");
     }
 
-    glfwSetWindowAspectRatio(window, WIDTH, (HEIGHT+OFFSET));
+    glfwSetWindowAspectRatio(window, WIDTH, (HEIGHT + OFFSET));
     glfwSetWindowSizeLimits(window, WIDTH * SCALE, (HEIGHT + OFFSET) * SCALE, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     glfwMakeContextCurrent(window);
@@ -40,15 +45,15 @@ void Display::init_display() {
     // create shader object
     shader = Shader("shaders/shader.vs", "shaders/shader.fs");
     shader.use();
-    
-    float top = 1.0 - (2.0*OFFSET)/(HEIGHT + OFFSET);
+
+    float top = 1.0 - (2.0 * OFFSET) / (HEIGHT + OFFSET);
 
     float vertices[] = {
         // positions            // texture coords
-        1.0f,  top,  0.0f, 1.0f, 1.0f,  // top right
-        1.0f, -1.0f,  0.0f, 1.0f, 0.0f,  // bottom right
-       -1.0f, -1.0f,  0.0f, 0.0f, 0.0f,  // bottom left
-       -1.0f,  top,  0.0f, 0.0f, 1.0f   // top left
+        1.0f,  top,   0.0f, 1.0f, 1.0f,  // top right
+        1.0f,  -1.0f, 0.0f, 1.0f, 0.0f,  // bottom right
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,  // bottom left
+        -1.0f, top,   0.0f, 0.0f, 1.0f   // top left
     };
 
     unsigned int indices[] = {
@@ -67,7 +72,8 @@ void Display::init_display() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8UI, WIDTH, HEIGHT, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, core.get_screen().data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8UI, WIDTH, HEIGHT, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
+                 core.get_screen().data());
 
     // initialize VAO
     glBindVertexArray(VAO);
@@ -85,7 +91,7 @@ void Display::init_display() {
     glEnableVertexAttribArray(1);
 
     // set on and off color uniforms
-    for (int i=0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
         shader.setVec3fv("color" + std::to_string(i), core.config.colors[i].data());
     }
 }
@@ -101,29 +107,8 @@ void Display::render_loop() {
         }
 
         if (core.check_screen() == true) {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_BYTE, core.get_screen().data());
-        }
-        
-        //TODO make this check better
-        if (core.get_system() != system) {
-           system = core.get_system();
-           set_audio(system);
-        }
-
-        switch (core.check_should_beep()) {
-            case START_BEEP:
-                if (ma_device_start(&device) != MA_SUCCESS) {
-                    std::cerr << "Failed to start playback device." << std::endl;
-                    ma_device_uninit(&device);
-                }
-                break;
-
-            case STOP_BEEP:
-                if (ma_device_stop(&device) != MA_SUCCESS) {
-                    std::cerr << "Failed to stop playback device." << std::endl;
-                    ma_device_uninit(&device);
-                }
-                break;
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
+                            core.get_screen().data());
         }
 
         gui.update();
@@ -147,7 +132,7 @@ void Display::render_loop() {
 void Display::update_colors() {
     shader.use();
 
-    for (int i=0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
         shader.setVec3fv("color" + std::to_string(i), core.config.colors[i].data());
     }
 }
@@ -321,9 +306,9 @@ void Display::key_callback(GLFWwindow* window, int key, int scancode, int action
 
 /*-----------------[Audio]-----------------*/
 
-//Writes samples to ringbuffer
+// Writes samples to ringbuffer
 void Display::write_samples_callback() {
-    //write to ring buffer
+    // write to ring buffer
     ma_pcm_rb* pRB = &rb;
     ma_uint32 numSamples = SAMPLE_SIZE;
 
@@ -335,37 +320,23 @@ void Display::write_samples_callback() {
     memcpy(pWriteBuffer, samples.data(), numSamples);
 
     ma_pcm_rb_commit_write(pRB, numSamples);
-}
 
-void Display::init_default_audio() {
-    ma_device_config deviceConfig;
-    ma_waveform_config squareWaveConfig;
+    ma_uint32 remaining = SAMPLE_SIZE - numSamples;
 
-    deviceConfig = ma_device_config_init(ma_device_type_playback);
-    deviceConfig.playback.format = DEVICE_FORMAT;
-    deviceConfig.playback.channels = DEVICE_CHANNELS;
-    deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
-    deviceConfig.dataCallback = default_data_callback;
-    deviceConfig.pUserData = &squareWave;
-
-    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
-        throw std::runtime_error("Failed to initialize audio device");
+    if (remaining > 0) {
+        ma_pcm_rb_acquire_write(pRB, &remaining, &pWriteBuffer);
+        memcpy(pWriteBuffer, samples.data() + numSamples, remaining);
+        ma_pcm_rb_commit_write(pRB, remaining);
     }
-
-    squareWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate,
-                                               ma_waveform_type_square, 0.2, 440);
-    ma_waveform_init(&squareWaveConfig, &squareWave);
 }
 
-void Display::init_xo_audio() {
-    //set audio callback to write samples 
-    core.set_audio_callback([this](){
-        this->write_samples_callback();
-    });
+void Display::init_audio() {
+    // set audio callback to write samples
+    core.set_audio_callback([this]() { this->write_samples_callback(); });
 
     ma_device_config deviceConfig;
 
-    ma_result result = ma_pcm_rb_init(DEVICE_FORMAT, DEVICE_CHANNELS, SAMPLE_SIZE*3, NULL, NULL, &rb);
+    ma_result result = ma_pcm_rb_init(DEVICE_FORMAT, DEVICE_CHANNELS, SAMPLE_SIZE * 8, NULL, NULL, &rb);
     if (result != MA_SUCCESS) {
         throw std::runtime_error("Failed to initialize ring buffer");
     }
@@ -374,28 +345,16 @@ void Display::init_xo_audio() {
     deviceConfig.playback.format = DEVICE_FORMAT;
     deviceConfig.playback.channels = DEVICE_CHANNELS;
     deviceConfig.sampleRate = DEVICE_SAMPLE_RATE;
-    deviceConfig.dataCallback = xo_data_callback;
+    deviceConfig.dataCallback = data_callback;
     deviceConfig.pUserData = &rb;
 
     if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
         throw std::runtime_error("Failed to initialize audio device");
     }
+    ma_device_start(&device);
 }
 
-void Display::default_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
-    ma_waveform* pSquareWave;
-
-    assert(pDevice->playback.channels == DEVICE_CHANNELS);
-
-    pSquareWave = (ma_waveform*)pDevice->pUserData;
-    assert(pSquareWave != NULL);
-
-    ma_waveform_read_pcm_frames(pSquareWave, pOutput, frameCount, NULL);
-
-    (void)pInput;
-}
-
-void Display::xo_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+void Display::data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     ma_pcm_rb* pRB;
 
     assert(pDevice->playback.channels == DEVICE_CHANNELS);
@@ -405,25 +364,23 @@ void Display::xo_data_callback(ma_device* pDevice, void* pOutput, const void* pI
 
     ma_uint32 framesRead = frameCount;
 
-    //read frameCount frames from the ringbuffer
     void* pInputBuffer;
-    ma_pcm_rb_acquire_read(pRB, &framesRead, &pInputBuffer);
-    memcpy(pOutput, pInputBuffer, framesRead);
-    //fill in leftover with 0s 
-    for (int i=framesRead; i < frameCount; i++) {
-        *((ma_uint8*)pOutput + i) = 0;
+    if (ma_pcm_rb_acquire_read(pRB, &framesRead, &pInputBuffer) != MA_SUCCESS) {
+        ma_silence_pcm_frames(pOutput, frameCount, DEVICE_FORMAT, DEVICE_CHANNELS);
+        return;
     }
+    memcpy(pOutput, pInputBuffer, framesRead);
     ma_pcm_rb_commit_read(pRB, framesRead);
 
-    (void)pInput;
-}
-
-
-void Display::set_audio(uint8_t system) {
-    ma_device_uninit(&device); 
-    if (system == XO_CHIP) {
-       init_xo_audio();
-    } else {
-        init_default_audio();
+    ma_uint32 remaining = frameCount - framesRead;
+    if (remaining > 0) {
+        if (ma_pcm_rb_acquire_read(pRB, &remaining, &pInputBuffer) != MA_SUCCESS) {
+            ma_silence_pcm_frames((void*)((char*)pOutput + framesRead), frameCount - framesRead, DEVICE_FORMAT, DEVICE_CHANNELS);
+            ma_pcm_rb_commit_read(pRB, frameCount - framesRead);
+            return;
+        }
+        memcpy((void*)((char*)pOutput + framesRead), pInputBuffer, remaining);
+        ma_pcm_rb_commit_read(pRB, remaining);
     }
+    (void)pInput;
 }

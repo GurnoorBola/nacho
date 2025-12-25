@@ -1,7 +1,6 @@
 #include <cpu/cpu.h>
 #include <display/display.h>
 
-#include <cmath>
 #include <iostream>
 #include <thread>
 

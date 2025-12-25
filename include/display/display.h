@@ -23,7 +23,6 @@ class Display {
 
    private:
     CPU& core;
-    int system = core.system;
 
     GUI gui;
 
@@ -32,7 +31,6 @@ class Display {
 
     ma_device device;
     ma_pcm_rb rb;
-    ma_waveform squareWave;
 
     unsigned int VAO;
     unsigned int VBO;
@@ -42,17 +40,11 @@ class Display {
 
     void init_display();
 
-    void init_default_audio();
-
-    void init_xo_audio();
+    void init_audio();
 
     void write_samples_callback(); 
 
-    static void xo_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
-
-    static void default_data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
-
-    void set_audio(uint8_t system);
+    static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
 
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 

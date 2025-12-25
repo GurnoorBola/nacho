@@ -1,12 +1,10 @@
 #pragma once
 
-#include <cmath>
-#include <iostream>
 #include <json.hpp>
 #include <mutex>
 #include <atomic>
 
-#define MAX_MEM 65536 
+#define MAX_MEM 65535 
 #define MAX_STACK 16
 #define WIDTH 128
 #define HEIGHT 64
@@ -21,12 +19,10 @@
 #define SCHIP1_1 6
 #define XO_CHIP 8
 
-#define START_BEEP 1
-#define STOP_BEEP 2
 #define MAX_AMPLITUDE 192
 
 #define NO_PRESS 0
-#define NO_RELEASE -1
+#define NO_RELEASE 255 
 
 class CPU {
    public:
@@ -83,7 +79,6 @@ class CPU {
 
         Quirks quirks;
     };
-    std::atomic<int> system = config.system;
 
     Config config;
 
@@ -113,13 +108,8 @@ class CPU {
     std::array<uint8_t, SAMPLE_SIZE> gen_frame_samples();
     void set_audio_callback(std::function<void(void)> callback);
 
-    int get_system();
-
     bool check_stop();
     bool check_color();
-
-    // returns START_BEEP if should start sound, STOP_BEEP if it should stop or 0 if we should keep as is
-    int check_should_beep();
 
     void set_config(Config config);
 
@@ -133,7 +123,7 @@ class CPU {
     uint16_t PC;
     uint16_t I;
     uint16_t stack[MAX_STACK] = {};
-    uint8_t SP = -1;
+    int SP = -1;
     int delay = 0;
     int sound = 0;
     uint8_t registers[16] = {};
@@ -160,7 +150,6 @@ class CPU {
 
     std::mutex screen_mtx;
     std::mutex key_mtx;
-    std::mutex sound_mtx;
 
     // flags
 
@@ -170,8 +159,6 @@ class CPU {
     std::atomic<bool> draw = false;
     // bool if screen updated
     std::atomic<bool> screen_update = false;
-    // bool if currently beeping
-    bool beep = false;
     //if colors updated in config
     std::atomic<bool> color_update = false;
 
@@ -227,8 +214,7 @@ class CPU {
     void set_reg_rand(uint8_t x_reg,
                       uint8_t val);  // CXNN set VX to random byte (bitwise AND) NN
     void display(uint16_t mem_index, uint8_t plane, uint8_t x_reg, 
-                uint8_t y_reg, uint8_t width, uint8_t height);                     // TODO DXYH but with specifier for plane, 
-                                                                    // if height is 0 we draw 16 x 16 otherise draw 8 x height 
+                uint8_t y_reg, uint8_t width, uint8_t height);  // if height is 0 we draw 16 x 16 otherise draw 8 x height 
     void skip_key_pressed(uint8_t x_reg);      // EX9E skip if key represented by VX's
                                                // lower nibble is pressed
     void skip_key_not_pressed(uint8_t x_reg);  // EXA1 skip if key represented by
@@ -274,7 +260,6 @@ class CPU {
 
     //[xo-chip] opcodes
 
-    // TODO change scroll functions to only scroll selected bitplane
     void scroll_up_n(uint8_t val);                           // 00DN scroll screen up by N pixels
                                                              // (XOCHIP Quirk: only slected bit plane scrolls XO CHIP)
     void write_reg_mem_range(uint8_t x_reg, uint8_t y_reg);  // 5XY2 write memory starting from register X to register y

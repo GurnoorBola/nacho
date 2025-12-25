@@ -2,6 +2,7 @@
 #include <database/database.h>
 #include <openssl/sha.h>
 
+#include <iostream>
 #include <fstream>
 #include <unordered_map>
 
