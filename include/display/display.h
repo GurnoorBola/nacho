@@ -7,6 +7,8 @@
 
 #define DEVICE_FORMAT ma_format_u8
 #define DEVICE_CHANNELS 1 
+#define WAVEFORM_TYPE ma_waveform_type_square
+#define BEEP_FREQUENCY 600
 
 #define SCALE 10
 #define OFFSET 2 
@@ -31,6 +33,7 @@ class Display {
 
     ma_device device;
     ma_pcm_rb rb;
+    ma_waveform beepWF;
 
     unsigned int VAO;
     unsigned int VBO;

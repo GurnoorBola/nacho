@@ -315,7 +315,13 @@ void Display::write_samples_callback() {
     void* pWriteBuffer;
     ma_pcm_rb_acquire_write(pRB, &numSamples, &pWriteBuffer);
 
-    std::array<uint8_t, SAMPLE_SIZE> samples = core.gen_frame_samples();
+    std::array<uint8_t, SAMPLE_SIZE> samples; 
+    // if XO-CHIP we generate custom samples otherwise we generate a default beep from a square wave
+    if (core.config.system == XO_CHIP) {
+        samples = core.gen_frame_samples();
+    } else {
+        ma_waveform_read_pcm_frames(&beepWF, samples.data(), SAMPLE_SIZE, nullptr);
+    }
 
     memcpy(pWriteBuffer, samples.data(), numSamples);
 
@@ -339,6 +345,12 @@ void Display::init_audio() {
     ma_result result = ma_pcm_rb_init(DEVICE_FORMAT, DEVICE_CHANNELS, SAMPLE_SIZE * 8, NULL, NULL, &rb);
     if (result != MA_SUCCESS) {
         throw std::runtime_error("Failed to initialize ring buffer");
+    }
+    
+    ma_waveform_config config = ma_waveform_config_init(DEVICE_FORMAT, DEVICE_CHANNELS, DEVICE_SAMPLE_RATE, WAVEFORM_TYPE, 0.05, BEEP_FREQUENCY);
+    result = ma_waveform_init(&config, &beepWF);
+    if (result != MA_SUCCESS) {
+        throw std::runtime_error("Failed to initialize waveform");
     }
 
     deviceConfig = ma_device_config_init(ma_device_type_playback);
