@@ -13,4 +13,10 @@ class GUI {
    private:
     CPU& core;
     Database db;
+
+    CPU::Config curr_config = core.config;
+
+    //Imgui flags
+    
+    bool show_config {false};
 };

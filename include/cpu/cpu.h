@@ -14,6 +14,7 @@
 #define SAMPLE_SIZE 48000 / 60 
 #define DEVICE_SAMPLE_RATE 48000
 
+#define NUM_SYSTEMS 4
 #define CHIP8 0
 #define SCHIP_MODERN 2
 #define SCHIP1_1 6
@@ -49,11 +50,6 @@ class CPU {
     struct Config {
         int system = SCHIP_MODERN;
         int speed = 12;
-
-        std::array<float, 3> baseColor1 = {1.0f, 1.0f, 1.0f};
-        std::array<float, 3> baseColor2 = {0.8f, 0.8f, 0.8f};
-        std::array<float, 3> highlight = {0.5f, 0.5f, 0.5f};
-        std::array<float, 3> offColor = {0.0f, 0.0f, 0.0f};
         
         //default color pallete
         std::array<std::array<float, 3>, 16> colors = {{
