@@ -5,6 +5,8 @@
 #include <imgui_impl_opengl3.h>
 
 #include <array>
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 
@@ -44,7 +46,7 @@ void GUI::update() {
     ImGui::NewFrame();
     // ImGui::ShowDemoWindow();
 
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoCollapse, minSize, maxSize)) {
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlg", ImGuiWindowFlags_NoCollapse, minSize, maxSize)) {
         if (ImGuiFileDialog::Instance()->IsOk()) {  // action if OK
             std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
             std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
@@ -57,6 +59,34 @@ void GUI::update() {
                 if (config.start_address != 0x200) core.loadProgram(filePathName);
             }
         }
+        // close
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    if (ImGuiFileDialog::Instance()->Display("SaveFileDlg", ImGuiWindowFlags_NoCollapse, minSize, maxSize)) {
+        if (ImGuiFileDialog::Instance()->IsOk()) {  // action if OK
+            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+
+            std::ofstream file(filePathName);
+            file << core.gen_save().dump(2);
+        }
+
+        // close
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    if (ImGuiFileDialog::Instance()->Display("LoadFileDlg", ImGuiWindowFlags_NoCollapse, minSize, maxSize)) {
+        if (ImGuiFileDialog::Instance()->IsOk()) {  // action if OK
+            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            
+            std::ifstream file(filePathName);
+            if (!file || core.load_save(file) != 0) {
+                std::cerr << "Invalid file. Could not open" << std::endl;
+            }
+        }
+
         // close
         ImGuiFileDialog::Instance()->Close();
     }
@@ -148,10 +178,22 @@ void GUI::update() {
             if (ImGui::MenuItem("Open", "Ctrl+O")) {
                 IGFD::FileDialogConfig config;
                 config.path = "games";
-                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ch8,.xo8", config);
+                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlg", "Choose File", ".ch8,.xo8", config);
             }
             if (ImGui::MenuItem("Save", "Ctrl+S")) {
                 // TODO: add savestate functionality
+                // menu for save functionality
+                core.pause(); 
+                IGFD::FileDialogConfig config;
+                config.path = ".";
+                ImGuiFileDialog::Instance()->OpenDialog("SaveFileDlg", "Save as...", ".json", config);
+            }
+            if (ImGui::MenuItem("Load")) {
+                //TODO: add loading for the savestate file
+                core.pause(); 
+                IGFD::FileDialogConfig config;
+                config.path = ".";
+                ImGuiFileDialog::Instance()->OpenDialog("LoadFileDlg", "Load save...", ".json", config);
             }
             if (ImGui::MenuItem("Quit", "Esc")) {
                 core.terminate();
@@ -161,16 +203,20 @@ void GUI::update() {
         if (ImGui::BeginMenu("System")) {
             if (ImGui::BeginMenu("Mode", "Ctrl+M")) {
                 if (ImGui::MenuItem("Chip8")) {
-                    core.set_config(db.gen_platform_config(CHIP8));
+                    curr_config = db.gen_platform_config(CHIP8);
+                    core.set_config(curr_config);
                 }
                 if (ImGui::MenuItem("SCHIP 1.1")) {
-                    core.set_config(db.gen_platform_config(SCHIP1_1));
+                    curr_config = db.gen_platform_config(SCHIP1_1);
+                    core.set_config(curr_config);
                 }
                 if (ImGui::MenuItem("SCHIP Modern")) {
-                    core.set_config(db.gen_platform_config(SCHIP_MODERN));
+                    curr_config = db.gen_platform_config(SCHIP_MODERN);
+                    core.set_config(curr_config);
                 }
                 if (ImGui::MenuItem("XO-CHIP")) {
-                    core.set_config(db.gen_platform_config(XO_CHIP));
+                    curr_config = db.gen_platform_config(XO_CHIP);
+                    core.set_config(curr_config);
                 }
                 ImGui::EndMenu();
             }

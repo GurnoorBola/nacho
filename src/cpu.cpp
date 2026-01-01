@@ -62,9 +62,9 @@ CPU::CPU() {
     }
 #endif
     // copy fonts to memory (0x050 - 0x09F)
-    memcpy(&memory[0x50], fonts, sizeof(fonts));
+    std::copy(std::begin(fonts), std::end(fonts), memory.begin() + 0x50);
     // copy big fonts to memory (0xA0 - 0x13F)
-    memcpy(&memory[0xA0], big_fonts, sizeof(big_fonts));
+    std::copy(std::begin(big_fonts), std::end(big_fonts), memory.begin() + 0xA0);
 };
 
 /*-----------------[Stack]-----------------*/
@@ -113,7 +113,7 @@ int CPU::loadProgram(std::string filepath) {
         return -2;
     }
 
-    program.read(reinterpret_cast<char*>(memory + config.start_address), fileSize);
+    program.read(reinterpret_cast<char*>(memory.data() + config.start_address), fileSize);
 
     for (int i = config.start_address; i < config.start_address + (int)fileSize; i++) {
         printf("%02x ", memory[i]);
@@ -129,7 +129,7 @@ int CPU::loadProgram(std::string filepath) {
 std::string CPU::hash_bin(int fileSize) {
     // compute hash
     unsigned char hash[SHA_DIGEST_LENGTH];
-    SHA1(memory + config.start_address, fileSize, hash);
+    SHA1(memory.data() + config.start_address, fileSize, hash);
 
     std::ostringstream oss;
     for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
@@ -214,9 +214,108 @@ void CPU::reset() {
     for (uint8_t i = 0; i < 16; i++) {
         registers[i] = flags[i] = 0;
     }
-    memset(audio_pattern, 0, 128);
+    std::fill(audio_pattern.begin(), audio_pattern.end(), 0);
     std::fill(screen.begin(), screen.end(), 0);
     screen_update = true;
+}
+
+//helper function to convert CPU::Config to json
+void to_json(json& j, const CPU::Config& config) {
+    j["system"] = config.system;
+    j["speed"] = config.speed;
+    j["colors"] = config.colors;
+    j["start_address"] = config.start_address;
+    j["quirks"] = 
+    {
+        {"shift", config.quirks.shift},
+        {"memory_increment_by_X", config.quirks.memory_increment_by_X},
+        {"memory_leave_I_unchanged", config.quirks.memory_leave_I_unchanged},
+        {"wrap", config.quirks.wrap},
+        {"jump", config.quirks.jump},
+        {"vblank", config.quirks.vblank},
+        {"logic", config.quirks.logic},
+        {"draw_zero", config.quirks.draw_zero},
+        {"half_scroll_lores", config.quirks.half_scroll_lores},
+        {"clean_screen", config.quirks.clean_screen},
+        {"set_collisions", config.quirks.set_collisions},
+        {"lores_8x16", config.quirks.lores_8x16}
+    };
+}
+
+//helper function to convert json to CPU::Config
+void from_json(const json& j, CPU::Config& config) {
+    config.system = j["system"];
+    config.speed = j["speed"];
+    config.colors = j["colors"];
+    config.start_address = j["start_address"];
+    config.quirks.shift = j["quirks"]["shift"];
+    config.quirks.memory_increment_by_X = j["quirks"]["memory_increment_by_X"];
+    config.quirks.memory_leave_I_unchanged = j["quirks"]["memory_leave_I_unchanged"];
+    config.quirks.wrap = j["quirks"]["wrap"];
+    config.quirks.jump = j["quirks"]["jump"];
+    config.quirks.vblank = j["quirks"]["vblank"];
+    config.quirks.logic = j["quirks"]["logic"];
+    config.quirks.draw_zero = j["quirks"]["draw_zero"];
+    config.quirks.half_scroll_lores = j["quirks"]["half_scroll_lores"];
+    config.quirks.clean_screen = j["quirks"]["clean_screen"];
+    config.quirks.set_collisions = j["quirks"]["set_collisions"];
+    config.quirks.lores_8x16 = j["quirks"]["lores_8x16"];
+}
+
+//TODO: generate a json object containing info that needs to be saved
+json CPU::gen_save() {
+    json save;
+    //save config, memory, screen, PC, I, stack, registers, timers, flags, mode 
+    
+    save["config"] = config;
+    save["memory"] = memory;
+    save["screen"] = screen;
+    save["PC"] = PC;
+    save["I"] = I;
+    save["Stack"] = stack;
+    save["SP"] = SP;
+    save["delay"] = delay;
+    save["sound"] = sound;
+    save["registers"] = registers;
+    save["flags"] = flags;
+    save["audio_pattern"] = audio_pattern;
+    save["playback_rate"] = playback_rate;
+    save["phase"] = phase;
+    save["lores"] = lores;
+    save["bit_plane"] = bit_plane;
+
+    return save;
+}
+
+//TODO: load the json object 
+//returns 0 on successful load and 1 otherwise
+int CPU::load_save(std::ifstream& file) {
+    //convert from text file to json
+    json save{};
+    try {
+        file >> save;
+    } catch (const nlohmann::json::parse_error& e) {
+        std::cerr << "Error parsing json file" << std::endl;  
+        return 1;
+    }
+
+    set_config(save["config"]);
+    memory = save["memory"];
+    screen = save["screen"];
+    PC = save["PC"];
+    I = save["I"];
+    stack = save["Stack"];
+    SP = save["SP"];
+    delay = save["delay"];
+    sound = save["sound"];
+    registers = save["registers"];
+    flags = save["flags"];
+    audio_pattern = save["audio_pattern"];
+    playback_rate = save["playback_rate"];
+    phase = save["phase"];
+    lores = save["lores"];
+    bit_plane = save["bit_plane"];
+    return 0;
 }
 
 void CPU::dump_reg() {

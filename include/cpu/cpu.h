@@ -76,7 +76,7 @@ class CPU {
         Quirks quirks;
     };
 
-    Config config;
+    Config config; // *
 
     
 
@@ -111,29 +111,32 @@ class CPU {
 
     void reset();
 
+    nlohmann::json gen_save();
+    int load_save(std::ifstream& file);
+
     void dump_reg();
 
    private:
-    uint8_t memory[MAX_MEM] = {};
-    std::array<uint8_t, SCREEN_SIZE> screen = {};
-    uint16_t PC;
-    uint16_t I;
-    uint16_t stack[MAX_STACK] = {};
-    int SP = -1;
-    int delay = 0;
-    int sound = 0;
-    uint8_t registers[16] = {};
+    std::array<uint8_t, MAX_MEM> memory {}; // *
+    std::array<uint8_t, SCREEN_SIZE> screen {}; // *
+    uint16_t PC; // *
+    uint16_t I; // *
+    std::array<uint16_t, MAX_STACK> stack {}; // *
+    int SP = -1; // *
+    int delay = 0; // *
+    int sound = 0; // *
+    std::array<uint8_t, 16> registers {}; // *
 
-    uint8_t flags[16] = {};
+    std::array<uint8_t, 16> flags {}; // *
 
-    uint8_t audio_pattern[128] = {};
-    float playback_rate = 4000;
-    float phase = 0;
+    std::array<uint8_t, 128> audio_pattern {}; // *
+    float playback_rate = 4000; // *
+    float phase = 0; // *
     std::function<void(void)> audio_callback;
 
-    bool lores = true;
+    bool lores = true; // *
 
-    uint8_t bit_plane = 0b01;
+    uint8_t bit_plane = 0b01; // *
 
     //keys currently pressed
     uint16_t pressed = NO_PRESS;
