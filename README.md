@@ -15,6 +15,14 @@ A Chip-8 emulator with support for Classic CHIP-8, Super CHIP-8, and XO-Chip pro
 
 NACHO is fully written in C++ and uses GLFW + OpenGL for graphics.
 
+## Features
+
+* Supports Chip-8, Super-Chip, XO-Chip programs
+* Set custom system configurations 
+* Automatic configuration generator for select programs
+* Save States
+* Simple Debugger
+
 ## Getting Started
 
 ### Dependencies
@@ -33,13 +41,20 @@ cmake --build build
 
 ### Executing program
 
+On Linux:
+```
+./build/chip8
+```
+
+On Windows:
+```
+.\build\chip8
+```
 * Place programs you want to run on the emulator in the games directory of the project. (Create if it doesn't exist)
 * Use the UI to select your game from the list and have fun! 
 
 ## Work In Progress 
 
-* Add a full-featured debugger 
-* Make UI nicer
 * Add CRT effect to graphics 
 
 ## Authors
@@ -52,8 +67,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](https://gi
 
 ## Acknowledgments
 
-* https://tobiasvl.github.io/blog/write-a-chip-8-emulator/ - Great high-level CHIP-8 guide
+* https://tobiasvl.github.io/blog/write-a-chip-8-emulator/ - Great high-level CHIP-8 overview 
 * https://chip8.gulrak.net/ - Collection of CHIP-8 opcode info
-* http://devernay.free.fr/hacks/chip8/C8TECH10.HTM - Cowgod's technical reference
-*  https://github.com/Timendus/chip8-test-suite - Amazing compilation of CHIP-8 testing programs 
-* https://learnopengl.com/ - The GOAT of OpenGL
+*  https://github.com/Timendus/chip8-test-suite - Compilation of CHIP-8 testing programs 
