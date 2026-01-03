@@ -103,7 +103,7 @@ void GUI::update() {
                 const bool selected{curr_config.system == system_option};
 
                 if (ImGui::Selectable(system_map.at(system_option).c_str(), selected)) {
-                    curr_config.system = i;
+                    curr_config.system = system_option;
                 }
                 if (selected) ImGui::SetItemDefaultFocus();
             }
