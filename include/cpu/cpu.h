@@ -88,6 +88,7 @@ class CPU {
     // Main CHIP8 Functionality
     void emulate_cycle();
     void emulate_loop();
+    void benchmark();
     void pause();
     void resume();
     void step();

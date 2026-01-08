@@ -219,30 +219,27 @@ void CPU::reset() {
     screen_update = true;
 }
 
-//helper function to convert CPU::Config to json
+// helper function to convert CPU::Config to json
 void to_json(json& j, const CPU::Config& config) {
     j["system"] = config.system;
     j["speed"] = config.speed;
     j["colors"] = config.colors;
     j["start_address"] = config.start_address;
-    j["quirks"] = 
-    {
-        {"shift", config.quirks.shift},
-        {"memory_increment_by_X", config.quirks.memory_increment_by_X},
-        {"memory_leave_I_unchanged", config.quirks.memory_leave_I_unchanged},
-        {"wrap", config.quirks.wrap},
-        {"jump", config.quirks.jump},
-        {"vblank", config.quirks.vblank},
-        {"logic", config.quirks.logic},
-        {"draw_zero", config.quirks.draw_zero},
-        {"half_scroll_lores", config.quirks.half_scroll_lores},
-        {"clean_screen", config.quirks.clean_screen},
-        {"set_collisions", config.quirks.set_collisions},
-        {"lores_8x16", config.quirks.lores_8x16}
-    };
+    j["quirks"] = {{"shift", config.quirks.shift},
+                   {"memory_increment_by_X", config.quirks.memory_increment_by_X},
+                   {"memory_leave_I_unchanged", config.quirks.memory_leave_I_unchanged},
+                   {"wrap", config.quirks.wrap},
+                   {"jump", config.quirks.jump},
+                   {"vblank", config.quirks.vblank},
+                   {"logic", config.quirks.logic},
+                   {"draw_zero", config.quirks.draw_zero},
+                   {"half_scroll_lores", config.quirks.half_scroll_lores},
+                   {"clean_screen", config.quirks.clean_screen},
+                   {"set_collisions", config.quirks.set_collisions},
+                   {"lores_8x16", config.quirks.lores_8x16}};
 }
 
-//helper function to convert json to CPU::Config
+// helper function to convert json to CPU::Config
 void from_json(const json& j, CPU::Config& config) {
     config.system = j["system"];
     config.speed = j["speed"];
@@ -262,11 +259,11 @@ void from_json(const json& j, CPU::Config& config) {
     config.quirks.lores_8x16 = j["quirks"]["lores_8x16"];
 }
 
-//TODO: generate a json object containing info that needs to be saved
+// TODO: generate a json object containing info that needs to be saved
 json CPU::gen_save() {
     json save;
-    //save config, memory, screen, PC, I, stack, registers, timers, flags, mode 
-    
+    // save config, memory, screen, PC, I, stack, registers, timers, flags, mode
+
     save["config"] = config;
     save["memory"] = memory;
     save["screen"] = screen;
@@ -287,15 +284,15 @@ json CPU::gen_save() {
     return save;
 }
 
-//TODO: load the json object 
-//returns 0 on successful load and 1 otherwise
+// TODO: load the json object
+// returns 0 on successful load and 1 otherwise
 int CPU::load_save(std::ifstream& file) {
-    //convert from text file to json
+    // convert from text file to json
     json save{};
     try {
         file >> save;
     } catch (const nlohmann::json::parse_error& e) {
-        std::cerr << "Error parsing json file" << std::endl;  
+        std::cerr << "Error parsing json file" << std::endl;
         return 1;
     }
 
@@ -369,6 +366,52 @@ void CPU::emulate_loop() {
             end = std::chrono::high_resolution_clock::now();
             diff = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         }
+    }
+}
+
+// TODO: add ui element to show MIPS and auto load 1dcell
+// add logic for calculating mips
+// In benchmark mode timers are not decremented and pausing is not possible
+void CPU::benchmark() {
+    int mips = 0;
+    while (1) {
+        auto start_sec = std::chrono::high_resolution_clock::now();
+        auto diff_sec = std::chrono::microseconds{0};
+
+        int num_instructions = 0;
+        while (diff_sec.count() < 1000000) {
+            decrementTimers();
+            // change for loop to run for 16.666 ms
+            auto start_frame = std::chrono::high_resolution_clock::now();
+            auto diff_frame = std::chrono::microseconds{0};
+
+            while (diff_frame.count() < 16666) {
+                if (stop) break;
+                if (draw) {
+                    draw = false;
+                    break;
+                }
+
+                emulate_cycle();
+                num_instructions += 1;
+
+                auto loop_end = std::chrono::high_resolution_clock::now();
+                diff_frame = std::chrono::duration_cast<std::chrono::microseconds>(loop_end - start_frame);
+                diff_sec = std::chrono::duration_cast<std::chrono::microseconds>(loop_end - start_sec);
+            }
+            if (stop) break;
+
+            screen_update = true;
+            if (sound) audio_callback();
+        }
+        if (stop) break;
+
+        if (mips == 0) {
+            mips = num_instructions / 1000000;
+        } else {
+            mips = (mips + num_instructions / 1000000) / 2;
+        }
+        std::cout << "Mips: " << mips << std::endl;
     }
 }
 
