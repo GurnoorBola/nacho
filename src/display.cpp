@@ -72,8 +72,9 @@ void Display::init_display() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    auto screenlock { core.get_screen() };
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8UI, WIDTH, HEIGHT, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
-                 core.get_screen().data());
+                 screenlock.screen.data());
 
     // initialize VAO
     glBindVertexArray(VAO);
@@ -107,8 +108,9 @@ void Display::render_loop() {
         }
 
         if (core.check_screen() == true) {
+            auto screenlock { core.get_screen() };
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
-                            core.get_screen().data());
+                            screenlock.screen.data());
         }
 
         gui.update();

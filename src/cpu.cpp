@@ -152,9 +152,8 @@ void CPU::release_key(uint8_t key) {
     released = key;
 }
 
-std::array<uint8_t, SCREEN_SIZE>& CPU::get_screen() {
-    std::lock_guard<std::mutex> lock(screen_mtx);
-    return screen;
+CPU::ScreenLock CPU::get_screen() {
+    return {std::unique_lock<std::mutex>(screen_mtx), screen};
 }
 
 bool CPU::check_screen() {

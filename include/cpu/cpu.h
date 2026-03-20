@@ -29,6 +29,12 @@ class CPU {
    public:
     CPU();
 
+    struct ScreenLock
+    {
+        std::unique_lock<std::mutex> lock{};
+        std::array<std::uint8_t, SCREEN_SIZE> screen{};
+    };
+
     // each bit maps to keypress
     uint16_t keys = 0;
 
@@ -100,7 +106,7 @@ class CPU {
     void release_key(uint8_t key);
 
     // check for update and return screen if updated else return NULL
-    std::array<uint8_t, SCREEN_SIZE>& get_screen();
+    ScreenLock get_screen();
     bool check_screen();
     std::array<uint8_t, SAMPLE_SIZE> gen_frame_samples();
     void set_audio_callback(std::function<void(void)> callback);
