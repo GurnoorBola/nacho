@@ -48,7 +48,7 @@ On Linux:
 
 On Windows:
 ```
-.\build\chip8
+.\build\chip8.exe
 ```
 * Place programs you want to run on the emulator in the games directory of the project. (Create if it doesn't exist)
 * Use the UI to select your game from the list and have fun! 
